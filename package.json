@@ -1,0 +1,60 @@
+{
+  "name": "vidselector",
+  "version": "0.1.0",
+  "description": "Lokale Film- und Serienbewertung mit persönlichen, regelbasierten Empfehlungen.",
+  "private": true,
+  "license": "UNLICENSED",
+  "author": "Marcel Schlatzke",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DevMatze/VidSelector.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "db:push": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "setup": "npm run db:push && npm run db:seed"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.2",
+    "lucide-react": "^0.468.0",
+    "next": "^16.2.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "@vitest/coverage-v8": "^4.1.10",
+    "axe-core": "^4.12.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.9.5",
+    "prisma": "^6.19.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}

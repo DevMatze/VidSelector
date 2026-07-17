@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(cuid())
+  name            String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  ratings         Rating[]
+  recommendations Recommendation[]
+}
+
+model MediaItem {
+  id              String           @id @default(cuid())
+  tmdbId          Int
+  type            String
+  title           String
+  originalTitle   String?
+  overview        String?
+  posterPath      String?
+  backdropPath    String?
+  releaseDate     String?
+  genres          String           @default("[]")
+  voteAverage     Float            @default(0)
+  voteCount       Int              @default(0)
+  popularity      Float            @default(0)
+  originalLanguage String?
+  metadata        String           @default("{}")
+  cachedAt        DateTime         @default(now())
+  expiresAt       DateTime         @default(now())
+  detailsCachedAt DateTime?
+  detailsExpiresAt DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  ratings         Rating[]
+  recommendations Recommendation[]
+
+  @@unique([tmdbId, type])
+  @@index([type])
+}
+
+model SearchCache {
+  id         String   @id @default(cuid())
+  query      String
+  page       Int      @default(1)
+  resultKeys String   @default("[]")
+  totalPages Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  expiresAt  DateTime
+
+  @@unique([query, page])
+  @@index([expiresAt])
+}
+
+model Rating {
+  id          String    @id @default(cuid())
+  userId      String
+  mediaItemId String
+  value       String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mediaItemId])
+  @@index([userId, value])
+}
+
+model Recommendation {
+  id          String    @id @default(cuid())
+  userId      String
+  mediaItemId String
+  score       Float
+  reasons     String    @default("[]")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  lastShownAt DateTime?
+  displayCount Int      @default(0)
+  displayed   Boolean   @default(false)
+  clicked     Boolean   @default(false)
+  laterRated  Boolean   @default(false)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mediaItemId])
+  @@index([userId, score])
+}

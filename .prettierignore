@@ -1,0 +1,9 @@
+.next
+.next-build
+node_modules
+package-lock.json
+coverage
+playwright-report
+test-results
+prisma/*.db*
+tsconfig.tsbuildinfo

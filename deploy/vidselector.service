@@ -1,0 +1,16 @@
+[Unit]
+Description=VidSelector – persönliche Film- und Serienempfehlungen
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@VIDSELECTOR_DIR@
+Environment=NODE_ENV=production
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env npm run start -- --port 3000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

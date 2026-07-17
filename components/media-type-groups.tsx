@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Film, Tv } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { MediaType } from "@/lib/types";
 import { MediaCarousel } from "@/components/media-carousel";
 
@@ -19,6 +19,9 @@ interface Props<T> {
   paginate?: boolean;
   pageSize?: number;
   seeMoreHrefs?: Partial<Record<MediaType, string>>;
+  progressive?: boolean;
+  initialVisiblePerType?: number;
+  loadMoreStep?: number;
 }
 
 const GROUPS = [
@@ -35,6 +38,9 @@ export function MediaTypeGroups<T>({
   paginate = false,
   pageSize = 5,
   seeMoreHrefs,
+  progressive = false,
+  initialVisiblePerType = 20,
+  loadMoreStep = 20,
 }: Props<T>) {
   return (
     <div className="media-type-groups">
@@ -54,6 +60,9 @@ export function MediaTypeGroups<T>({
             paginate={paginate}
             pageSize={pageSize}
             seeMoreHref={seeMoreHrefs?.[type]}
+            progressive={progressive}
+            initialVisible={initialVisiblePerType}
+            loadMoreStep={loadMoreStep}
           />
         );
       })}
@@ -71,6 +80,9 @@ function MediaTypeGroup<T>({
   paginate,
   pageSize,
   seeMoreHref,
+  progressive,
+  initialVisible,
+  loadMoreStep,
 }: {
   type: MediaType;
   label: string;
@@ -81,7 +93,13 @@ function MediaTypeGroup<T>({
   paginate: boolean;
   pageSize: number;
   seeMoreHref?: string;
+  progressive: boolean;
+  initialVisible: number;
+  loadMoreStep: number;
 }) {
+  const [visibleCount, setVisibleCount] = useState(initialVisible);
+  const effectiveVisibleCount = Math.min(entries.length, Math.max(initialVisible, visibleCount));
+  const visibleEntries = progressive ? entries.slice(0, effectiveVisibleCount) : entries;
   return (
     <section className={`media-type-group ${type}`}>
       <div className="media-type-heading">
@@ -99,9 +117,22 @@ function MediaTypeGroup<T>({
         </div>
       </div>
       {paginate && entries.length > pageSize ? (
-        <MediaCarousel items={entries} renderItem={renderItem} label={label} />
+        <MediaCarousel items={entries} renderItem={renderItem} label={label} pageSize={pageSize} />
       ) : (
-        <div className={`media-grid ${gridClassName}`.trim()}>{entries.map(renderItem)}</div>
+        <>
+          <div className={`media-grid ${gridClassName}`.trim()}>{visibleEntries.map(renderItem)}</div>
+          {progressive && effectiveVisibleCount < entries.length && (
+            <div className="load-more-row">
+              <button className="button" type="button" onClick={() => setVisibleCount((count) => count + loadMoreStep)}>
+                Weitere {Math.min(loadMoreStep, entries.length - effectiveVisibleCount)} {label.toLocaleLowerCase("de")}{" "}
+                laden
+              </button>
+              <span>
+                {visibleEntries.length} von {entries.length}
+              </span>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

@@ -4,8 +4,18 @@ import { apiError } from "@/lib/api-response";
 import { cacheSearch, findCachedMedia, getCachedSearch, purgeExpiredMediaCache } from "@/lib/media-cache";
 import { isDemoMode, searchMedia } from "@/lib/tmdb";
 import { enforceRateLimit } from "@/lib/request-security";
+import { getWatchStatusMap } from "@/lib/data";
+import type { MediaSummary } from "@/lib/types";
 
 const querySchema = z.string().trim().min(2).max(200);
+
+async function addWatchStatuses(results: MediaSummary[]) {
+  const statuses = await getWatchStatusMap(results);
+  return results.map((media) => ({
+    ...media,
+    watchStatus: statuses.get(`${media.type}:${media.tmdbId}`) ?? null,
+  }));
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +29,10 @@ export async function GET(request: NextRequest) {
       .parse(request.nextUrl.searchParams.get("page") ?? "1");
     enforceRateLimit(request, "search", 60, 60_000);
     const cachedQuery = await getCachedSearch(query, page);
-    if (cachedQuery) return NextResponse.json({ ...cachedQuery, page, demoMode: isDemoMode, cacheHit: true });
+    if (cachedQuery) {
+      const results = await addWatchStatuses(cachedQuery.results);
+      return NextResponse.json({ ...cachedQuery, results, page, demoMode: isDemoMode, cacheHit: true });
+    }
 
     const localResults = page === 1 ? await findCachedMedia(query) : [];
     let remote;
@@ -28,7 +41,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       if (localResults.length) {
         return NextResponse.json({
-          results: localResults,
+          results: await addWatchStatuses(localResults),
           page,
           totalPages: 1,
           demoMode: isDemoMode,
@@ -40,8 +53,9 @@ export async function GET(request: NextRequest) {
     }
     const merged = new Map<string, (typeof remote.results)[number]>();
     for (const media of [...localResults, ...remote.results]) merged.set(`${media.type}:${media.tmdbId}`, media);
-    const results = [...merged.values()];
-    await Promise.all([cacheSearch(query, page, results, remote.totalPages), purgeExpiredMediaCache()]);
+    const cacheableResults = [...merged.values()];
+    await Promise.all([cacheSearch(query, page, cacheableResults, remote.totalPages), purgeExpiredMediaCache()]);
+    const results = await addWatchStatuses(cacheableResults);
     return NextResponse.json({ results, page, totalPages: remote.totalPages, demoMode: isDemoMode, cacheHit: false });
   } catch (error) {
     return apiError(error, "Die Suche konnte nicht ausgeführt werden.");

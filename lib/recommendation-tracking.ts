@@ -2,11 +2,15 @@ import type { MediaSummary } from "@/lib/types";
 
 export function trackRecommendations(
   items: Array<Pick<MediaSummary, "type" | "tmdbId">>,
-  event: "displayed" | "clicked",
+  event: "displayed" | "clicked" | "skipped" | "dismissed",
 ) {
   if (!items.length) return;
   const body = JSON.stringify({ event, items: items.map(({ type, tmdbId }) => ({ type, tmdbId })) });
-  if (event === "clicked" && typeof navigator !== "undefined" && navigator.sendBeacon) {
+  if (
+    (event === "clicked" || event === "skipped" || event === "dismissed") &&
+    typeof navigator !== "undefined" &&
+    navigator.sendBeacon
+  ) {
     navigator.sendBeacon("/api/recommendations", new Blob([body], { type: "application/json" }));
     return;
   }

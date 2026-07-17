@@ -14,32 +14,34 @@ model User {
   updatedAt       DateTime         @updatedAt
   ratings         Rating[]
   recommendations Recommendation[]
+  watchEntries    WatchEntry[]
 }
 
 model MediaItem {
-  id              String           @id @default(cuid())
-  tmdbId          Int
-  type            String
-  title           String
-  originalTitle   String?
-  overview        String?
-  posterPath      String?
-  backdropPath    String?
-  releaseDate     String?
-  genres          String           @default("[]")
-  voteAverage     Float            @default(0)
-  voteCount       Int              @default(0)
-  popularity      Float            @default(0)
+  id               String           @id @default(cuid())
+  tmdbId           Int
+  type             String
+  title            String
+  originalTitle    String?
+  overview         String?
+  posterPath       String?
+  backdropPath     String?
+  releaseDate      String?
+  genres           String           @default("[]")
+  voteAverage      Float            @default(0)
+  voteCount        Int              @default(0)
+  popularity       Float            @default(0)
   originalLanguage String?
-  metadata        String           @default("{}")
-  cachedAt        DateTime         @default(now())
-  expiresAt       DateTime         @default(now())
-  detailsCachedAt DateTime?
+  metadata         String           @default("{}")
+  cachedAt         DateTime         @default(now())
+  expiresAt        DateTime         @default(now())
+  detailsCachedAt  DateTime?
   detailsExpiresAt DateTime?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  ratings         Rating[]
-  recommendations Recommendation[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  ratings          Rating[]
+  recommendations  Recommendation[]
+  watchEntries     WatchEntry[]
 
   @@unique([tmdbId, type])
   @@index([type])
@@ -74,21 +76,41 @@ model Rating {
 }
 
 model Recommendation {
+  id           String    @id @default(cuid())
+  userId       String
+  mediaItemId  String
+  score        Float
+  reasons      String    @default("[]")
+  source       String    @default("discovery")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+  lastShownAt  DateTime?
+  displayCount Int       @default(0)
+  clickCount   Int       @default(0)
+  skipCount    Int       @default(0)
+  displayed    Boolean   @default(false)
+  clicked      Boolean   @default(false)
+  laterRated   Boolean   @default(false)
+  active       Boolean   @default(true)
+  dismissedAt  DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem    MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mediaItemId])
+  @@index([userId, score])
+  @@index([userId, active])
+}
+
+model WatchEntry {
   id          String    @id @default(cuid())
   userId      String
   mediaItemId String
-  score       Float
-  reasons     String    @default("[]")
+  status      String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @default(now()) @updatedAt
-  lastShownAt DateTime?
-  displayCount Int      @default(0)
-  displayed   Boolean   @default(false)
-  clicked     Boolean   @default(false)
-  laterRated  Boolean   @default(false)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
 
   @@unique([userId, mediaItemId])
-  @@index([userId, score])
+  @@index([userId, status])
 }

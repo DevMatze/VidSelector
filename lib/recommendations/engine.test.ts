@@ -108,4 +108,52 @@ describe("scoreRecommendations", () => {
     expect(result.recommendations[0].media.tmdbId).toBe(30);
     expect(result.recommendations[0].reasons.join(" ")).toContain("Alex Beispiel");
   });
+
+  it("blendet ausdrücklich uninteressante Titel dauerhaft aus", () => {
+    const result = scoreRecommendations(
+      [],
+      [
+        {
+          media: candidateSciFi,
+          source: "popular",
+          signal: { displayCount: 1, clickCount: 0, skipCount: 0, dismissed: true },
+        },
+        { media: candidateRomance, source: "popular" },
+      ],
+    );
+
+    expect(result.recommendations.map((item) => item.media.tmdbId)).toEqual([4]);
+  });
+
+  it("reduziert Wiederholungen und wertet einen Klick nur vorsichtig positiv", () => {
+    const result = scoreRecommendations(
+      [],
+      [
+        {
+          media: candidateSciFi,
+          source: "popular",
+          signal: { displayCount: 8, clickCount: 0, skipCount: 2, dismissed: false },
+        },
+        {
+          media: candidateRomance,
+          source: "popular",
+          signal: { displayCount: 1, clickCount: 1, skipCount: 0, dismissed: false },
+        },
+      ],
+    );
+
+    expect(result.recommendations[0].media.tmdbId).toBe(4);
+  });
+
+  it("kann nachweislich erfolgreiche Empfehlungsquellen leicht bevorzugen", () => {
+    const result = scoreRecommendations(
+      [],
+      [
+        { media: candidateSciFi, source: "similar", sourceAdjustment: 2 },
+        { media: candidateRomance, source: "popular", sourceAdjustment: -2 },
+      ],
+    );
+
+    expect(result.recommendations[0].media.tmdbId).toBe(3);
+  });
 });

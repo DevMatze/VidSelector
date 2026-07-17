@@ -12,12 +12,18 @@ const mocks = vi.hoisted(() => ({
   saveRecommendationHistory: vi.fn(),
   candidatesFromRatings: vi.fn(),
   markRecommendationEvents: vi.fn(),
+  getRecommendationSignals: vi.fn(),
+  getRecommendationSourceAdjustments: vi.fn(),
+  getWatchStatusMap: vi.fn(),
 }));
 vi.mock("@/lib/data", () => ({
   getRatings: mocks.getRatings,
   saveRecommendationHistory: mocks.saveRecommendationHistory,
   getCachedCandidatePeople: mocks.getCachedCandidatePeople,
   markRecommendationEvents: mocks.markRecommendationEvents,
+  getRecommendationSignals: mocks.getRecommendationSignals,
+  getRecommendationSourceAdjustments: mocks.getRecommendationSourceAdjustments,
+  getWatchStatusMap: mocks.getWatchStatusMap,
 }));
 vi.mock("@/lib/media-cache", () => ({
   cacheMediaSummaries: mocks.cacheMediaSummaries,
@@ -43,6 +49,9 @@ describe("GET /api/recommendations", () => {
     mocks.getCandidatePool.mockResolvedValue([]);
     mocks.candidatesFromRatings.mockReturnValue([]);
     mocks.getCachedCandidatePeople.mockResolvedValue(new Map());
+    mocks.getRecommendationSignals.mockResolvedValue(new Map());
+    mocks.getRecommendationSourceAdjustments.mockResolvedValue({});
+    mocks.getWatchStatusMap.mockResolvedValue(new Map());
     mocks.cacheSearch.mockResolvedValue(undefined);
     mocks.scoreRecommendations.mockReturnValue({ profile: { ratingCount: 0 }, recommendations: [] });
   });

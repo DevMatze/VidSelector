@@ -82,6 +82,7 @@ export function SimilarClient({ type, id }: { type: MediaType; id: number }) {
         <MediaTypeGroups
           items={media.similar}
           getMedia={(item) => item}
+          progressive
           renderItem={(item) => <MediaCard key={`${item.type}:${item.tmdbId}`} media={item} />}
         />
       )}

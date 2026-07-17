@@ -5,12 +5,13 @@ import { getProfile, getRatings, resetProfile, updateProfileName } from "@/lib/d
 import { buildTasteProfile } from "@/lib/recommendations/engine";
 import { assertSameOrigin } from "@/lib/request-security";
 import { maintainMediaCache } from "@/lib/media-cache";
+import { createProfileBackup, maintainAutomaticProfileBackups } from "@/lib/profile-backups";
 
 const profileSchema = z.object({ name: z.string().trim().min(1).max(80) });
 
 export async function GET(request: Request) {
   try {
-    await maintainMediaCache();
+    await Promise.all([maintainMediaCache(), maintainAutomaticProfileBackups().catch(() => null)]);
     if (new URL(request.url).searchParams.get("summary") === "1") {
       return NextResponse.json({ profile: await getProfile() });
     }
@@ -35,6 +36,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     assertSameOrigin(request);
+    await createProfileBackup("before-reset");
     await resetProfile();
     return NextResponse.json({ reset: true });
   } catch (error) {

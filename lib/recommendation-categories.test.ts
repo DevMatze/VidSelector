@@ -28,27 +28,28 @@ function recommendation(tmdbId: number, type: MediaType, source: ScoredRecommend
   };
 }
 
-const recommendations = [
-  recommendation(1, "movie", "popular"),
-  recommendation(2, "tv", "popular"),
-  recommendation(3, "movie", "discovery"),
-  recommendation(4, "tv", "discovery"),
-];
+const recommendations = Array.from({ length: 40 }, (_, index) =>
+  recommendation(index + 1, index % 2 === 0 ? "movie" : "tv", index >= 35 ? "discovery" : "popular"),
+);
 
 describe("recommendationsForCategory", () => {
   it("filtert Film-, Serien- und Entdeckungskategorien korrekt", () => {
-    expect(recommendationsForCategory("movies", recommendations).map((item) => item.media.tmdbId)).toEqual([1, 3]);
-    expect(recommendationsForCategory("series", recommendations).map((item) => item.media.tmdbId)).toEqual([2, 4]);
-    expect(recommendationsForCategory("discovery", recommendations).map((item) => item.media.tmdbId)).toEqual([3, 4]);
+    expect(recommendationsForCategory("movies", recommendations).map((item) => item.media.tmdbId)).toEqual([33, 35]);
+    expect(recommendationsForCategory("series", recommendations).map((item) => item.media.tmdbId)).toEqual([32, 34]);
+    expect(recommendationsForCategory("discovery", recommendations).map((item) => item.media.tmdbId)).toEqual([
+      36, 37, 38, 39, 40,
+    ]);
   });
 
   it("lässt bei weiteren passenden Titeln die Hero-Empfehlung aus", () => {
-    expect(recommendationsForCategory("more", recommendations).map((item) => item.media.tmdbId)).toEqual([2, 3, 4]);
+    expect(recommendationsForCategory("more", recommendations).map((item) => item.media.tmdbId)).toEqual(
+      Array.from({ length: 30 }, (_, index) => index + 2),
+    );
   });
 
   it("erstellt eigene Film- und Serientitel pro Kategorie", () => {
-    expect(categoryTitleForMediaType("more", "movie")).toBe("Weitere passende Titel – Filme");
-    expect(categoryTitleForMediaType("more", "tv")).toBe("Weitere passende Titel – Serien");
+    expect(categoryTitleForMediaType("more", "movie")).toBe("Top-Auswahl für dich – Filme");
+    expect(categoryTitleForMediaType("more", "tv")).toBe("Top-Auswahl für dich – Serien");
     expect(categorySupportsMediaType("movies", "tv")).toBe(false);
     expect(categorySupportsMediaType("series", "tv")).toBe(true);
   });

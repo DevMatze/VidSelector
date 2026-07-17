@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { Star, Sparkles } from "lucide-react";
-import type { MediaSummary, RatingValue } from "@/lib/types";
+import { EyeOff, Star, Sparkles } from "lucide-react";
+import type { MediaSummary, RatingValue, WatchStatus } from "@/lib/types";
 import { MediaPoster } from "@/components/media-poster";
 import { RatingControls } from "@/components/rating-controls";
 import { trackRecommendations } from "@/lib/recommendation-tracking";
+import { WatchControls } from "@/components/watch-controls";
 
 interface Props {
   media: MediaSummary;
@@ -15,9 +16,22 @@ interface Props {
   onRated?: (value: RatingValue | null) => void;
   priority?: boolean;
   trackRecommendation?: boolean;
+  watchStatus?: WatchStatus | null;
+  onWatchStatusChange?: (status: WatchStatus | null) => void;
+  onDismiss?: () => void;
 }
 
-export function MediaCard({ media, reason, rating, onRated, priority, trackRecommendation = false }: Props) {
+export function MediaCard({
+  media,
+  reason,
+  rating,
+  onRated,
+  priority,
+  trackRecommendation = false,
+  watchStatus = media.watchStatus ?? null,
+  onWatchStatusChange,
+  onDismiss,
+}: Props) {
   const year = media.releaseDate?.slice(0, 4) || "—";
   const cardRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -74,7 +88,30 @@ export function MediaCard({ media, reason, rating, onRated, priority, trackRecom
             {reason}
           </p>
         )}
-        <RatingControls media={media} initialValue={rating} compact onChange={onRated} />
+        <div className="card-controls">
+          <RatingControls media={media} initialValue={rating} compact onChange={onRated} />
+          <WatchControls
+            key={watchStatus ?? "none"}
+            media={media}
+            initialStatus={watchStatus}
+            compact
+            onChange={onWatchStatusChange}
+          />
+          {trackRecommendation && (
+            <button
+              className="watch-button dismiss-button"
+              type="button"
+              title="Nicht interessiert"
+              aria-label={`Nicht interessiert: ${media.title}`}
+              onClick={() => {
+                trackRecommendations([media], "dismissed");
+                onDismiss?.();
+              }}
+            >
+              <EyeOff size={16} />
+            </button>
+          )}
+        </div>
       </div>
     </article>
   );

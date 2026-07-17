@@ -24,6 +24,7 @@ VidSelector ist eine lokale Einzelplatz-Web-App, mit der du Filme und Serien bew
 ## Was VidSelector besonders macht
 
 - **Eigene Bewertungen:** `Gefällt mir`, `Neutral` oder `Nicht meins`
+- **Unabhängige Merkliste:** `Möchte ich sehen`, `Angefangen`, `Gesehen` oder `Abgebrochen`
 - **Regelbasierte Empfehlungen:** nachvollziehbare Scores statt Black-Box-KI
 - **Filme und Serien getrennt:** in jeder Kategorie, Suche und Bibliothek
 - **Netflix-artige Navigation:** Karussells, dynamische Pfeile und eigene „Siehe mehr“-Seiten
@@ -31,6 +32,7 @@ VidSelector ist eine lokale Einzelplatz-Web-App, mit der du Filme und Serien bew
 - **Ausführliche Details:** Cast, Kreativteam, Laufzeit, Staffeln, Trailer und ähnliche Titel
 - **Streaminghinweise für Deutschland:** getrennt nach Streamen, Mieten und Kaufen
 - **Local-first Cache:** SQLite wird vor TMDB abgefragt
+- **Lokale Datensicherung:** versionierter Export, validierter Import und automatische Backups
 - **Demo-Modus:** direkt ohne API-Zugang testbar
 - **Responsive UI:** für Desktop und Smartphone
 
@@ -57,7 +59,26 @@ Bewertungen
    diversifizierte Empfehlungen
 ```
 
-Öffentliche Bewertung, Stimmenanzahl und Popularität dienen als zusätzliche Qualitätssignale. Bereits bewertete Titel werden ausgeschlossen; negative Muster senken den Score ähnlicher Kandidaten aktiv ab. Die zentralen Gewichte liegen in [`lib/recommendations/config.ts`](lib/recommendations/config.ts).
+Öffentliche Bewertung, Stimmenanzahl und Popularität dienen als zusätzliche Qualitätssignale. Bereits bewertete Titel
+werden ausgeschlossen; negative Muster senken den Score ähnlicher Kandidaten aktiv ab. Wiederholte Anzeigen, vorsichtig
+gewichtete Klicks und ausdrücklich übersprungene Titel verbessern die Rotation, ohne eine echte Bewertung zu ersetzen.
+Die zentralen Gewichte liegen in [`lib/recommendations/config.ts`](lib/recommendations/config.ts).
+
+### Eindeutige Kategorien ohne Wiederholungen
+
+- **Top-Auswahl für dich:** die stärksten gemischten Empfehlungen aus Film und Serie
+- **Passende Filme:** weitere Filme außerhalb der Top- und Entdeckungsauswahl
+- **Passende Serien:** weitere Serien außerhalb der Top- und Entdeckungsauswahl
+- **Etwas Neues ausprobieren:** eigene Entdeckungstitel außerhalb der bisherigen Auswahl
+
+Ein Titel wird auf der Startseite nur einer dieser Rubriken zugeordnet. Die zugehörigen „Siehe mehr“-Seiten verwenden
+dieselbe eindeutige Aufteilung.
+
+### Bewertung, Merkliste und Feedback
+
+Eine Bewertung beschreibt deinen Geschmack. Der Wiedergabestatus verwaltet dagegen, ob du einen Titel erst sehen
+möchtest, bereits angefangen, gesehen oder abgebrochen hast. „Nicht interessiert“ blendet nur den konkreten Vorschlag
+aus und wertet nicht automatisch dessen gesamtes Genre ab.
 
 ### Anime oder Animation?
 
@@ -149,6 +170,17 @@ Nicht in Git gespeichert werden:
 - `prisma/dev.db` mit Profil und Bewertungen
 - Build-, Coverage- und Testartefakte
 - `node_modules`
+- lokale Sicherungen unter `backups/`
+
+## Export, Import und Backups
+
+Unter **Einstellungen → Datensicherung** kannst du Profilname, Bewertungen und Merkliste als versionierte JSON-Datei
+exportieren. Beim Import stehen Zusammenführen und vollständiges Ersetzen zur Auswahl. Vor einem Import oder einer
+Profilrücksetzung legt VidSelector automatisch eine zusätzliche lokale Sicherung an.
+
+`npm run db:push` erstellt außerdem vor jeder Migration eine konsistente SQLite-Sicherung. Die zehn neuesten
+Datenbanksicherungen werden unter `backups/database` aufbewahrt; automatische Profilsicherungen behalten sieben
+tägliche und bis zu vier ältere wöchentliche Stände. Diese Dateien verlassen deinen Computer nicht.
 
 ## Qualitätssicherung
 
@@ -173,6 +205,8 @@ lib/tmdb.ts           serverseitige TMDB-Integration
 lib/media-cache.ts    Query-, Medien- und Detailcache
 lib/data.ts           Prisma-Persistenz und lokales Profil
 lib/recommendations/  Profilbildung, Ranking und Diversifizierung
+lib/profile-transfer.ts versioniertes Export- und Importformat
+lib/profile-backups.ts automatische lokale Profilsicherungen
 prisma/               SQLite-Schema, Migrationen und Seed
 tests/e2e/             Playwright-Smoke-Tests
 deploy/                systemd-Servicevorlage
@@ -187,6 +221,8 @@ deploy/                systemd-Servicevorlage
 | `npm run start`         | lokalen Produktionsserver starten          |
 | `npm run setup`         | Migrationen und Beispieldaten einrichten   |
 | `npm run db:push`       | Prisma-Migrationen anwenden                |
+| `npm run db:backup`     | konsistente SQLite-Sicherung erstellen     |
+| `npm run db:migrate`    | Migration ohne zusätzlichen Backup-Schritt |
 | `npm run db:seed`       | Beispielprofil anlegen                     |
 | `npm run lint`          | ESLint ausführen                           |
 | `npm run typecheck`     | TypeScript prüfen                          |
@@ -202,11 +238,21 @@ deploy/                systemd-Servicevorlage
 - serverseitige TMDB-Authentifizierung
 - Herkunftsprüfung für schreibende API-Anfragen
 - Begrenzung API-intensiver Routen
+- lokale, validierte Datenexporte und Sicherungen
 - Security-Header und lokale Netzwerkbindung im Produktionsbetrieb
 
 VidSelector ist ausdrücklich für einen lokalen Benutzer ausgelegt. Wer die Anwendung öffentlich erreichbar macht, muss vorher eine echte Authentifizierung, einen geeigneten öffentlichen Betrieb und eine eigene Sicherheitsprüfung ergänzen.
 
 Sicherheitsprobleme bitte nicht als öffentliches Issue melden. Hinweise stehen in [`SECURITY.md`](SECURITY.md).
+
+## Entwicklungstransparenz
+
+VidSelector wurde mit Unterstützung generativer KI, insbesondere **OpenAI Codex**, konzipiert, programmiert, getestet
+und dokumentiert. Architekturentscheidungen, Auswahl der Änderungen, fachliche Prüfung und Verantwortung für den
+veröffentlichten Stand liegen beim Maintainer. Das Empfehlungssystem selbst verwendet keine generative KI und sendet
+keine persönlichen Geschmacksdaten an einen KI-Dienst.
+
+Alle veröffentlichten Änderungen sind im [`CHANGELOG.md`](CHANGELOG.md) nachvollziehbar.
 
 ## Datenquellen, Marken und rechtliche Hinweise
 

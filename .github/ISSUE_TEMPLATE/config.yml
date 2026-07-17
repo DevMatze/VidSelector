@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Vertrauliche Sicherheitsmeldung
+    url: https://github.com/DevMatze/VidSelector/security/advisories/new
+    about: Sicherheitsprobleme und mögliche Geheimnisse bitte ausschließlich privat melden.

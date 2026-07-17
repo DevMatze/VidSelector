@@ -1,0 +1,25 @@
+name: Verbesserung vorschlagen
+description: Schlage eine Verbesserung für den persönlichen Einzelplatzbetrieb vor.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem soll gelöst werden?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Gewünschte Lösung
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Projektrahmen
+      options:
+        - label: Der Vorschlag passt zu einer lokalen, persönlichen und nicht-kommerziellen Einzelplatz-App.
+          required: true

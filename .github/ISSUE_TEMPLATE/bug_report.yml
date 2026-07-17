@@ -1,0 +1,52 @@
+name: Fehler melden
+description: Melde einen reproduzierbaren Fehler in einer lokalen VidSelector-Installation.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für den Hinweis. Bitte veröffentliche hier keine `.env`, TMDB-Tokens oder SQLite-Datenbank.
+  - type: input
+    id: version
+    attributes:
+      label: Version oder Commit
+      placeholder: z. B. main oder Commit-SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Umgebung
+      options:
+        - Entwicklungsserver (`npm run dev`)
+        - Produktionsserver (`npm run start`)
+        - systemd-Benutzer-Service
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Reproduzieren
+      placeholder: Beschreibe die Schritte möglichst genau.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Erwartetes Verhalten
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Tatsächliches Verhalten
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Bereinigte Logs
+      description: Entferne vorher Tokens, Pfade und persönliche Daten.
+      render: shell

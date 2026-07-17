@@ -28,7 +28,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "db:push": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "setup": "npm run db:push && npm run db:seed"
   },
   "dependencies": {

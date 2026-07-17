@@ -51,3 +51,15 @@ test("Einstellungen enthalten die Datenquellen-Attribution", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "Datenquellen" })).toBeVisible();
   await expect(page.getByText(/not endorsed or certified by TMDB/i).first()).toBeVisible();
 });
+
+test("Merkliste und lokale Datensicherung sind erreichbar", async ({ page }) => {
+  await page.route("**/api/watchlist*", (route) => route.fulfill({ json: { entries: [], totalEntries: 0 } }));
+  await page.goto("/watchlist");
+  await expect(page.getByRole("heading", { name: "Meine Merkliste" })).toBeVisible();
+  await expect(page.getByText("Deine Merkliste ist noch leer")).toBeVisible();
+
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { name: "Datensicherung" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Daten exportieren/ })).toHaveAttribute("href", "/api/profile/export");
+  await expect(page.getByRole("button", { name: /Sicherung importieren/ })).toBeVisible();
+});

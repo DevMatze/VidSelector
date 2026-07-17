@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError } from "@/lib/api-response";
-import { getCachedCandidatePeople, getRatings, markRecommendationEvents, saveRecommendationHistory } from "@/lib/data";
+import {
+  getCachedCandidatePeople,
+  getRatings,
+  getRecommendationSignals,
+  getRecommendationSourceAdjustments,
+  getWatchStatusMap,
+  markRecommendationEvents,
+  saveRecommendationHistory,
+} from "@/lib/data";
 import { candidatesFromRatings, scoreRecommendations } from "@/lib/recommendations/engine";
 import { getCandidatePool, isDemoMode } from "@/lib/tmdb";
 import { cacheMediaSummaries, cacheSearch, getCachedSearch } from "@/lib/media-cache";
@@ -44,23 +52,44 @@ export async function GET(request: NextRequest) {
       ...candidatesFromRatings(ratings),
       ...genericCandidates.map(({ media, source }) => ({ media, source })),
     ];
-    const people = await getCachedCandidatePeople(candidates.map(({ media }) => media));
+    const candidateMedia = candidates.map(({ media }) => media);
+    const [people, signals, watchStatuses, sourceAdjustments] = await Promise.all([
+      getCachedCandidatePeople(candidateMedia),
+      getRecommendationSignals(candidateMedia),
+      getWatchStatusMap(candidateMedia),
+      getRecommendationSourceAdjustments(),
+    ]);
     const result = scoreRecommendations(
       ratings,
-      candidates.map((candidate) => ({
-        ...candidate,
-        people: people.get(`${candidate.media.type}:${candidate.media.tmdbId}`) ?? [],
-      })),
+      candidates
+        .filter((candidate) => {
+          const status = watchStatuses.get(`${candidate.media.type}:${candidate.media.tmdbId}`);
+          return status !== "completed" && status !== "dropped";
+        })
+        .map((candidate) => ({
+          ...candidate,
+          people: people.get(`${candidate.media.type}:${candidate.media.tmdbId}`) ?? [],
+          signal: signals.get(`${candidate.media.type}:${candidate.media.tmdbId}`),
+          sourceAdjustment: sourceAdjustments[candidate.source] ?? 0,
+        })),
     );
     await saveRecommendationHistory(result.recommendations);
-    return NextResponse.json({ ...result, demoMode: isDemoMode });
+    const recommendations = result.recommendations.map((recommendation) => ({
+      ...recommendation,
+      media: {
+        ...recommendation.media,
+        watchStatus: watchStatuses.get(`${recommendation.media.type}:${recommendation.media.tmdbId}`) ?? null,
+      },
+      watchStatus: watchStatuses.get(`${recommendation.media.type}:${recommendation.media.tmdbId}`) ?? null,
+    }));
+    return NextResponse.json({ ...result, recommendations, demoMode: isDemoMode });
   } catch (error) {
     return apiError(error, "Empfehlungen konnten gerade nicht berechnet werden.");
   }
 }
 
 const eventSchema = z.object({
-  event: z.enum(["displayed", "clicked"]),
+  event: z.enum(["displayed", "clicked", "skipped", "dismissed"]),
   items: z
     .array(z.object({ type: z.enum(["movie", "tv"]), tmdbId: z.number().int().positive() }))
     .min(1)

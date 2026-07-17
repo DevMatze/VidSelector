@@ -36,8 +36,16 @@ describe("TMDB-konforme Cache-Bereinigung", () => {
     const maximumAge = deleteWhere.cachedAt.lt as Date;
 
     expect(maximumAge.getTime()).toBeGreaterThanOrEqual(before - CACHE_TTL.maximum - 50);
-    expect(deleteWhere).toMatchObject({ ratings: { none: {} }, recommendations: { none: {} } });
-    expect(scrub.where.OR).toEqual([{ ratings: { some: {} } }, { recommendations: { some: {} } }]);
+    expect(deleteWhere).toMatchObject({
+      ratings: { none: {} },
+      recommendations: { none: {} },
+      watchEntries: { none: {} },
+    });
+    expect(scrub.where.OR).toEqual([
+      { ratings: { some: {} } },
+      { recommendations: { some: {} } },
+      { watchEntries: { some: {} } },
+    ]);
     expect(scrub.data).toMatchObject({
       title: "Metadaten abgelaufen",
       metadata: "{}",

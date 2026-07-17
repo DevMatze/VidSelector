@@ -1,6 +1,6 @@
 {
   "name": "vidselector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lokale Film- und Serienbewertung mit persönlichen, regelbasierten Empfehlungen.",
   "private": true,
   "license": "UNLICENSED",
@@ -27,7 +27,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "db:push": "prisma migrate deploy",
+    "db:backup": "tsx --env-file=.env scripts/backup-database.ts",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "npm run db:backup && npm run db:migrate",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "setup": "npm run db:push && npm run db:seed"
   },

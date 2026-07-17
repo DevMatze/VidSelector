@@ -6,9 +6,15 @@ const mocks = vi.hoisted(() => ({
   getCachedMediaDetails: vi.fn(),
   cacheMediaDetails: vi.fn(),
   getMediaDetails: vi.fn(),
+  getWatchStatus: vi.fn(),
+  getWatchStatusMap: vi.fn(),
 }));
 
-vi.mock("@/lib/data", () => ({ getRating: mocks.getRating }));
+vi.mock("@/lib/data", () => ({
+  getRating: mocks.getRating,
+  getWatchStatus: mocks.getWatchStatus,
+  getWatchStatusMap: mocks.getWatchStatusMap,
+}));
 vi.mock("@/lib/media-cache", () => ({
   getCachedMediaDetails: mocks.getCachedMediaDetails,
   cacheMediaDetails: mocks.cacheMediaDetails,
@@ -16,6 +22,7 @@ vi.mock("@/lib/media-cache", () => ({
 vi.mock("@/lib/tmdb", () => ({
   getMediaDetails: mocks.getMediaDetails,
   isDemoMode: false,
+  TmdbError: class TmdbError extends Error {},
 }));
 
 import { GET } from "@/app/api/media/[type]/[id]/route";
@@ -45,6 +52,8 @@ describe("GET /api/media/[type]/[id] cache", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getRating.mockResolvedValue(null);
+    mocks.getWatchStatus.mockResolvedValue(null);
+    mocks.getWatchStatusMap.mockResolvedValue(new Map());
   });
 
   it("liefert vollständige lokale Details ohne TMDB-Anfrage", async () => {

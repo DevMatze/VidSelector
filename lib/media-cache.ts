@@ -63,12 +63,13 @@ export async function purgeExpiredMediaCache(): Promise<void> {
         cachedAt: { lt: maximumAge },
         ratings: { none: {} },
         recommendations: { none: {} },
+        watchEntries: { none: {} },
       },
     }),
     prisma.mediaItem.updateMany({
       where: {
         cachedAt: { lt: maximumAge },
-        OR: [{ ratings: { some: {} } }, { recommendations: { some: {} } }],
+        OR: [{ ratings: { some: {} } }, { recommendations: { some: {} } }, { watchEntries: { some: {} } }],
       },
       data: {
         title: "Metadaten abgelaufen",

@@ -2,12 +2,15 @@ import type { StoredRating } from "@/lib/data";
 import type { MediaSummary, ScoredRecommendation, TasteProfile } from "@/lib/types";
 import { MIN_RATINGS_FOR_PROFILE, RECOMMENDATION_WEIGHTS as W } from "@/lib/recommendations/config";
 import { mediaGenreFacets } from "@/lib/genres";
+import type { RecommendationSignal } from "@/lib/data";
 
 export interface Candidate {
   media: MediaSummary;
   source: ScoredRecommendation["source"];
   similarTo?: Array<{ title: string; value: "like" | "dislike" }>;
   people?: string[];
+  signal?: RecommendationSignal;
+  sourceAdjustment?: number;
 }
 
 const decade = (date: string): string => {
@@ -74,12 +77,24 @@ export function scoreRecommendations(
 
   const recommendations = [...unique.values()]
     .filter(({ media }) => !rated.has(`${media.type}:${media.tmdbId}`))
+    .filter(({ signal }) => !signal?.dismissed)
     .map((candidate): ScoredRecommendation => {
       const { media } = candidate;
       const voteConfidence = Math.min(1, Math.log10((media.voteCount ?? 0) + 1) / 4);
       let score =
         Math.min(media.popularity / 30, W.popularityMax) +
         Math.max(0, media.voteAverage - 5) * W.publicRating * (0.35 + voteConfidence * 0.65);
+      score += candidate.sourceAdjustment ?? 0;
+      if (candidate.signal) {
+        const repeatedDisplayPenalty = Math.min(10, Math.max(0, candidate.signal.displayCount - 2) * 1.25);
+        const skippedPenalty = Math.min(12, candidate.signal.skipCount * 3);
+        const clickBonus = Math.min(3, candidate.signal.clickCount * 1.5);
+        score += clickBonus - repeatedDisplayPenalty - skippedPenalty;
+        if (candidate.signal.lastShownAt) {
+          const age = Date.now() - new Date(candidate.signal.lastShownAt).getTime();
+          if (age >= 0 && age < 3 * 24 * 60 * 60 * 1_000) score -= 1.5;
+        }
+      }
       const reasons: string[] = [];
       const likedGenres: string[] = [];
       const avoidedGenres: string[] = [];

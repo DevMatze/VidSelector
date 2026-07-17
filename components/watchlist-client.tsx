@@ -2,34 +2,33 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Library, Search, SlidersHorizontal } from "lucide-react";
-import type { RatingRecord } from "@/lib/types";
+import { Bookmark, Search, SlidersHorizontal } from "lucide-react";
 import { MediaCard } from "@/components/media-card";
 import { MediaTypeGroups } from "@/components/media-type-groups";
+import type { WatchEntryRecord } from "@/lib/types";
 
 interface Payload {
-  ratings: RatingRecord[];
-  genres: string[];
-  totalRatings: number;
+  entries: WatchEntryRecord[];
+  totalEntries: number;
 }
 
-export function LibraryClient() {
-  const [data, setData] = useState<Payload>({ ratings: [], genres: [], totalRatings: 0 });
+export function WatchlistClient() {
+  const [data, setData] = useState<Payload>({ entries: [], totalEntries: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({ query: "", value: "", type: "", genre: "", sort: "newest" });
+  const [filters, setFilters] = useState({ query: "", status: "", type: "", sort: "newest" });
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value));
-      const response = await fetch(`/api/ratings?${params}`, { cache: "no-store" });
+      const response = await fetch(`/api/watchlist?${params}`, { cache: "no-store" });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error);
       setData(json);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Laden fehlgeschlagen.");
+      setError(reason instanceof Error ? reason.message : "Merkliste konnte nicht geladen werden.");
     } finally {
       setLoading(false);
     }
@@ -39,41 +38,42 @@ export function LibraryClient() {
     const timer = window.setTimeout(() => void load(), 180);
     return () => window.clearTimeout(timer);
   }, [load]);
+
   function update(key: keyof typeof filters, value: string) {
-    setFilters((current) => ({ ...current, [key]: value, ...(key === "type" ? { genre: "" } : {}) }));
+    setFilters((current) => ({ ...current, [key]: value }));
   }
 
   return (
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Dein Verlauf</p>
-          <h1>Meine Bewertungen</h1>
-          <p className="lead">Alle Titel, die dein persönliches Profil prägen – jederzeit änderbar.</p>
+          <p className="eyebrow">Deine persönliche Auswahl</p>
+          <h1>Meine Merkliste</h1>
+          <p className="lead">Plane, beginne und verwalte Filme und Serien unabhängig von deiner Bewertung.</p>
         </div>
         <div className="stat-pill">
-          <strong>{data.ratings.length}</strong>
+          <strong>{data.entries.length}</strong>
           <span>angezeigt</span>
         </div>
       </div>
-      <div className="filter-bar">
+      <div className="filter-bar watchlist-filters">
         <label className="filter-search">
-          <span className="sr-only">In Bewertungen suchen</span>
+          <span className="sr-only">In der Merkliste suchen</span>
           <Search size={17} />
           <input
             value={filters.query}
             onChange={(event) => update("query", event.target.value)}
-            placeholder="In Bewertungen suchen"
-            aria-label="In Bewertungen suchen"
+            placeholder="In der Merkliste suchen"
           />
         </label>
         <label>
-          <span className="sr-only">Bewertung</span>
-          <select value={filters.value} onChange={(event) => update("value", event.target.value)}>
-            <option value="">Alle Meinungen</option>
-            <option value="like">Gefällt mir</option>
-            <option value="dislike">Gefällt mir nicht</option>
-            <option value="neutral">Neutral</option>
+          <span className="sr-only">Wiedergabestatus</span>
+          <select value={filters.status} onChange={(event) => update("status", event.target.value)}>
+            <option value="">Alle Status</option>
+            <option value="planned">Möchte ich sehen</option>
+            <option value="watching">Angefangen</option>
+            <option value="completed">Gesehen</option>
+            <option value="dropped">Abgebrochen</option>
           </select>
         </label>
         <label>
@@ -82,15 +82,6 @@ export function LibraryClient() {
             <option value="">Film & Serie</option>
             <option value="movie">Nur Filme</option>
             <option value="tv">Nur Serien</option>
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Genre</span>
-          <select value={filters.genre} onChange={(event) => update("genre", event.target.value)}>
-            <option value="">Alle Genres</option>
-            {data.genres.map((genre) => (
-              <option key={genre}>{genre}</option>
-            ))}
           </select>
         </label>
         <label>
@@ -105,56 +96,49 @@ export function LibraryClient() {
       {loading ? (
         <div className="status-panel" aria-live="polite" aria-busy="true">
           <div className="spinner" />
-          <p>Bibliothek wird geladen …</p>
+          <p>Merkliste wird geladen …</p>
         </div>
       ) : error ? (
         <div className="status-panel" role="alert">
-          <h2>Bibliothek nicht verfügbar</h2>
+          <h2>Merkliste nicht verfügbar</h2>
           <p>{error}</p>
           <button className="button" onClick={load}>
             Erneut laden
           </button>
         </div>
-      ) : data.ratings.length === 0 ? (
-        data.totalRatings > 0 ? (
+      ) : data.entries.length === 0 ? (
+        data.totalEntries > 0 ? (
           <div className="status-panel">
             <SlidersHorizontal size={38} />
-            <h2>Keine passenden Bewertungen</h2>
+            <h2>Keine passenden Einträge</h2>
             <p>Mit den gewählten Filtern wurde kein Titel gefunden.</p>
-            <button
-              className="button"
-              onClick={() => setFilters({ query: "", value: "", type: "", genre: "", sort: "newest" })}
-            >
+            <button className="button" onClick={() => setFilters({ query: "", status: "", type: "", sort: "newest" })}>
               Filter zurücksetzen
             </button>
           </div>
         ) : (
           <div className="status-panel">
-            <Library size={38} />
-            <h2>Noch nichts in diesem Regal</h2>
-            <p>
-              Bewerte ein paar bekannte Filme oder Serien. Sie erscheinen hier und verbessern sofort deine Vorschläge.
-            </p>
-            <Link href="/search" className="button primary">
-              Titel suchen
+            <Bookmark size={38} />
+            <h2>Deine Merkliste ist noch leer</h2>
+            <p>Speichere Titel als „Möchte ich sehen“, ohne sie bereits bewerten zu müssen.</p>
+            <Link className="button primary" href="/search">
+              Titel entdecken
             </Link>
           </div>
         )
       ) : (
         <MediaTypeGroups
-          items={data.ratings}
-          getMedia={(rating) => rating.media}
+          items={data.entries}
+          getMedia={(entry) => entry.media}
           gridClassName="library-grid"
           progressive
-          renderItem={(rating) => (
+          renderItem={(entry) => (
             <MediaCard
-              key={rating.id}
-              media={rating.media}
-              rating={rating.value}
-              watchStatus={rating.watchStatus}
-              onRated={(value) => {
-                if (!value) void load();
-              }}
+              key={entry.id}
+              media={entry.media}
+              rating={entry.rating}
+              watchStatus={entry.status}
+              onWatchStatusChange={() => void load()}
             />
           )}
         />

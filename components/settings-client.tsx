@@ -1,23 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Database, ExternalLink, RotateCcw, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Database, Download, ExternalLink, RotateCcw, ShieldCheck, TriangleAlert, Upload } from "lucide-react";
 
 export function SettingsClient() {
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [feedbackFor, setFeedbackFor] = useState<"import" | "reset" | null>(null);
+  const [importMode, setImportMode] = useState<"merge" | "replace">("merge");
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function importData(file: File | undefined) {
+    if (!file) return;
+    setPending(true);
+    setMessage("");
+    setError("");
+    setFeedbackFor("import");
+    try {
+      if (file.size > 5 * 1024 * 1024) throw new Error("Die Sicherungsdatei darf höchstens 5 MB groß sein.");
+      const data: unknown = JSON.parse(await file.text());
+      const response = await fetch("/api/profile/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: importMode, data }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error);
+      setMessage(
+        `${json.imported.ratings} Bewertungen und ${json.imported.watchEntries} Merkeinträge wurden importiert.`,
+      );
+      if (fileInput.current) fileInput.current.value = "";
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Import fehlgeschlagen.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function reset() {
     setPending(true);
+    setMessage("");
     setError("");
+    setFeedbackFor("reset");
     try {
       const response = await fetch("/api/profile", { method: "DELETE" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      setMessage("Alle Bewertungen und der Empfehlungsverlauf wurden zurückgesetzt.");
+      setMessage("Bewertungen, Merkliste und Empfehlungsverlauf wurden zurückgesetzt.");
       setConfirming(false);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Zurücksetzen fehlgeschlagen.");
@@ -65,6 +97,56 @@ export function SettingsClient() {
         </section>
         <section className="settings-card">
           <div className="setting-title">
+            <Download size={21} />
+            <div>
+              <h2>Datensicherung</h2>
+              <p>
+                Exportiere Profil, Bewertungen und Merkliste als versionierte JSON-Datei oder stelle eine Sicherung
+                wieder her. TMDB-Poster und Beschreibungen sind nicht Bestandteil des persönlichen Exports.
+              </p>
+            </div>
+          </div>
+          <div className="backup-actions">
+            <a className="button" href="/api/profile/export" download>
+              <Download size={16} /> Daten exportieren
+            </a>
+            <label>
+              <span>Importverhalten</span>
+              <select value={importMode} onChange={(event) => setImportMode(event.target.value as typeof importMode)}>
+                <option value="merge">Mit vorhandenen Daten zusammenführen</option>
+                <option value="replace">Vorhandene Daten ersetzen</option>
+              </select>
+            </label>
+            <input
+              ref={fileInput}
+              className="sr-only"
+              id="profile-import"
+              type="file"
+              accept="application/json,.json"
+              disabled={pending}
+              onChange={(event) => void importData(event.target.files?.[0])}
+            />
+            <button className="button" type="button" disabled={pending} onClick={() => fileInput.current?.click()}>
+              <Upload size={16} /> {pending ? "Importiert …" : "Sicherung importieren"}
+            </button>
+          </div>
+          <p className="muted small">
+            Vor einem Import oder Zurücksetzen erstellt VidSelector automatisch eine zusätzliche lokale Sicherung im
+            Ordner <code>backups/profile</code>.
+          </p>
+          {feedbackFor === "import" && message && (
+            <p className="success-message" role="status">
+              {message}
+            </p>
+          )}
+          {feedbackFor === "import" && error && (
+            <p className="inline-error" role="alert">
+              {error}
+            </p>
+          )}
+        </section>
+        <section className="settings-card">
+          <div className="setting-title">
             <ShieldCheck size={21} />
             <div>
               <h2>Datenschutz</h2>
@@ -100,8 +182,8 @@ export function SettingsClient() {
             <div>
               <h2>Profil zurücksetzen</h2>
               <p>
-                Entfernt alle Bewertungen und den Empfehlungsverlauf. Die Filmdatenbank bleibt als lokaler Cache
-                erhalten.
+                Entfernt Bewertungen, Merkliste und Empfehlungsverlauf. Die Filmdatenbank bleibt als lokaler Cache
+                erhalten; unmittelbar vorher wird eine Sicherung erstellt.
               </p>
             </div>
           </div>
@@ -121,12 +203,12 @@ export function SettingsClient() {
               Profil zurücksetzen
             </button>
           )}
-          {message && (
+          {feedbackFor === "reset" && message && (
             <p className="success-message" role="status">
               {message}
             </p>
           )}
-          {error && (
+          {feedbackFor === "reset" && error && (
             <p className="inline-error" role="alert">
               {error}
             </p>

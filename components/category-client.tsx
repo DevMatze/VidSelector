@@ -110,12 +110,14 @@ export function CategoryClient({ slug, mediaType }: { slug: RecommendationCatego
         <MediaTypeGroups
           items={items}
           getMedia={(item) => item.media}
+          progressive
           renderItem={(item) => (
             <MediaCard
               key={`${item.media.type}:${item.media.tmdbId}`}
               media={item.media}
               reason={item.reasons[0]}
               onRated={() => hide(item)}
+              onDismiss={() => hide(item)}
               trackRecommendation
             />
           )}

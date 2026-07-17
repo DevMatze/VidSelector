@@ -1,5 +1,6 @@
 export type MediaType = "movie" | "tv";
 export type RatingValue = "like" | "dislike" | "neutral";
+export type WatchStatus = "planned" | "watching" | "completed" | "dropped";
 
 export interface Genre {
   id: number;
@@ -34,6 +35,7 @@ export interface MediaSummary {
   voteCount?: number;
   popularity: number;
   originalLanguage: string;
+  watchStatus?: WatchStatus | null;
 }
 
 export interface MediaDetails extends MediaSummary {
@@ -55,6 +57,16 @@ export interface RatingRecord {
   createdAt: string;
   updatedAt: string;
   media: MediaSummary;
+  watchStatus?: WatchStatus | null;
+}
+
+export interface WatchEntryRecord {
+  id: string;
+  status: WatchStatus;
+  createdAt: string;
+  updatedAt: string;
+  media: MediaSummary;
+  rating?: RatingValue | null;
 }
 
 export interface TasteProfile {
@@ -74,6 +86,7 @@ export interface ScoredRecommendation {
   score: number;
   reasons: string[];
   source: "profile" | "similar" | "popular" | "discovery";
+  watchStatus?: WatchStatus | null;
 }
 
 export interface ApiError {

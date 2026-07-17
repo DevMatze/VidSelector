@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   updateProfileName: vi.fn(),
   buildTasteProfile: vi.fn(),
   maintainMediaCache: vi.fn(),
+  maintainAutomaticProfileBackups: vi.fn(),
+  createProfileBackup: vi.fn(),
 }));
 
 vi.mock("@/lib/data", () => ({
@@ -17,11 +19,18 @@ vi.mock("@/lib/data", () => ({
 }));
 vi.mock("@/lib/recommendations/engine", () => ({ buildTasteProfile: mocks.buildTasteProfile }));
 vi.mock("@/lib/media-cache", () => ({ maintainMediaCache: mocks.maintainMediaCache }));
+vi.mock("@/lib/profile-backups", () => ({
+  maintainAutomaticProfileBackups: mocks.maintainAutomaticProfileBackups,
+  createProfileBackup: mocks.createProfileBackup,
+}));
 
 import { GET, PATCH } from "@/app/api/profile/route";
 
 describe("/api/profile", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.maintainAutomaticProfileBackups.mockResolvedValue(null);
+  });
 
   it("liefert das Geschmacksprofil ohne Empfehlungen zu erzeugen", async () => {
     mocks.getProfile.mockResolvedValue({ name: "Filmfan" });

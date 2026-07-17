@@ -6,6 +6,24 @@ Alle wesentlichen Änderungen an VidSelector werden in diesem Dokument festgehal
 
 ## [Unreleased]
 
+## [0.2.1] – 2026-07-18
+
+### Geändert
+
+- Empfehlungsrubriken zählen Filme und Serien nicht mehr gemeinsam: Gemischte Kategorien können nun jeweils bis zu 50
+  Filme und zusätzlich bis zu 50 Serien enthalten.
+- „Passende Filme“ und „Passende Serien“ erhalten jeweils ein eigenes Kontingent von bis zu 50 weiteren Titeln.
+- Der lokale TMDB-Kandidatenpool berücksichtigt fünf Ergebnisseiten pro Medientyp und Quelle, damit die größeren
+  Kontingente zuverlässig gefüllt werden können.
+- Die Entdeckungsrubrik wird aus den besten noch nicht zugeordneten Kandidaten gefüllt, sodass auch dort bis zu 50
+  Filme und 50 Serien verfügbar sind.
+- Die überschneidungsfreie Zuordnung bleibt erhalten: Ein Titel erscheint weiterhin nur in einer Empfehlungsrubrik.
+
+### Performance
+
+- Trotz der größeren Auswahl rendern Karussells weiterhin nur fünf Karten und vollständige Kategorieseiten zunächst nur
+  20 Karten je Medientyp.
+
 ## [0.2.0] – 2026-07-18
 
 ### Hinzugefügt
@@ -67,6 +85,7 @@ Alle wesentlichen Änderungen an VidSelector werden in diesem Dokument festgehal
 - Responsive Netflix-inspirierte Karussells und eigene „Siehe mehr“-Seiten.
 - GitHub Actions, Dependabot, Security-Dokumentation, systemd-Benutzerservice und Demo-Modus.
 
-[Unreleased]: https://github.com/DevMatze/VidSelector/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/DevMatze/VidSelector/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/DevMatze/VidSelector/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DevMatze/VidSelector/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DevMatze/VidSelector/releases/tag/v0.1.0

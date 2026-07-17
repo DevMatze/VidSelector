@@ -66,13 +66,14 @@ Die zentralen Gewichte liegen in [`lib/recommendations/config.ts`](lib/recommend
 
 ### Eindeutige Kategorien ohne Wiederholungen
 
-- **Top-Auswahl für dich:** die stärksten gemischten Empfehlungen aus Film und Serie
-- **Passende Filme:** weitere Filme außerhalb der Top- und Entdeckungsauswahl
-- **Passende Serien:** weitere Serien außerhalb der Top- und Entdeckungsauswahl
-- **Etwas Neues ausprobieren:** eigene Entdeckungstitel außerhalb der bisherigen Auswahl
+- **Top-Auswahl für dich:** bis zu 50 der stärksten Filme und zusätzlich bis zu 50 der stärksten Serien
+- **Passende Filme:** bis zu 50 weitere Filme außerhalb der Top- und Entdeckungsauswahl
+- **Passende Serien:** bis zu 50 weitere Serien außerhalb der Top- und Entdeckungsauswahl
+- **Etwas Neues ausprobieren:** jeweils bis zu 50 eigene Film- und Serienentdeckungen außerhalb der bisherigen Auswahl
 
-Ein Titel wird auf der Startseite nur einer dieser Rubriken zugeordnet. Die zugehörigen „Siehe mehr“-Seiten verwenden
-dieselbe eindeutige Aufteilung.
+Die Kontingente für Filme und Serien werden unabhängig voneinander gezählt. Ein Titel wird auf der Startseite trotzdem
+nur einer dieser Rubriken zugeordnet. Die zugehörigen „Siehe mehr“-Seiten verwenden dieselbe eindeutige Aufteilung und
+laden aus Performancegründen zunächst 20 Titel je Medientyp.
 
 ### Bewertung, Merkliste und Feedback
 

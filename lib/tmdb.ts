@@ -256,21 +256,34 @@ export async function getCandidatePool(
 ): Promise<Array<{ media: MediaSummary; source: "popular" | "discovery" }>> {
   if (isDemoMode) return DEMO_CATALOG.map((media, index) => ({ media, source: index < 8 ? "popular" : "discovery" }));
   const genreMap = await getGenreMap();
+  const pages = Array.from({ length: 5 }, (_, index) => index + 1);
   const [movies, shows, topMovies, topShows] = await Promise.all([
-    tmdbFetch<TmdbList<TmdbMedia>>("/trending/movie/week", {}, fresh),
-    tmdbFetch<TmdbList<TmdbMedia>>("/trending/tv/week", {}, fresh),
-    tmdbFetch<TmdbList<TmdbMedia>>("/movie/top_rated", { region: "DE", page: fresh ? 2 : 1 }, fresh),
-    tmdbFetch<TmdbList<TmdbMedia>>("/tv/top_rated", { page: fresh ? 2 : 1 }, fresh),
+    fetchCandidatePages("/trending/movie/week", pages, fresh),
+    fetchCandidatePages("/trending/tv/week", pages, fresh),
+    fetchCandidatePages("/movie/top_rated", pages, fresh, { region: "DE" }),
+    fetchCandidatePages("/tv/top_rated", pages, fresh),
   ]);
   return [
-    ...movies.results.map((media) => ({ media: mapSummary(media, "movie", genreMap), source: "popular" as const })),
-    ...shows.results.map((media) => ({ media: mapSummary(media, "tv", genreMap), source: "popular" as const })),
-    ...topMovies.results.map((media) => ({
+    ...movies.map((media) => ({ media: mapSummary(media, "movie", genreMap), source: "popular" as const })),
+    ...shows.map((media) => ({ media: mapSummary(media, "tv", genreMap), source: "popular" as const })),
+    ...topMovies.map((media) => ({
       media: mapSummary(media, "movie", genreMap),
       source: "discovery" as const,
     })),
-    ...topShows.results.map((media) => ({ media: mapSummary(media, "tv", genreMap), source: "discovery" as const })),
+    ...topShows.map((media) => ({ media: mapSummary(media, "tv", genreMap), source: "discovery" as const })),
   ];
+}
+
+async function fetchCandidatePages(
+  path: string,
+  pages: number[],
+  fresh: boolean,
+  params: Record<string, string | number | undefined> = {},
+): Promise<TmdbMedia[]> {
+  const responses = await Promise.all(
+    pages.map((page) => tmdbFetch<TmdbList<TmdbMedia>>(path, { ...params, page }, fresh)),
+  );
+  return responses.flatMap((response) => response.results);
 }
 
 export function imageUrl(path: string | null | undefined, size: "w342" | "w500" | "original" = "w500"): string | null {

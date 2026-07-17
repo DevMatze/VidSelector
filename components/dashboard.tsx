@@ -53,12 +53,11 @@ export function Dashboard() {
   );
   const hero = visible[heroIndex % Math.max(visible.length, 1)];
   const heroKey = hero ? `${hero.media.type}:${hero.media.tmdbId}` : "";
-  const more = recommendationsForCategory("more", visible).filter(
-    ({ media }) => `${media.type}:${media.tmdbId}` !== heroKey,
-  );
-  const movies = recommendationsForCategory("movies", visible);
-  const shows = recommendationsForCategory("series", visible);
-  const discoveries = recommendationsForCategory("discovery", visible);
+  const additionallyExcludedKeys = new Set(heroKey ? [heroKey] : []);
+  const more = recommendationsForCategory("more", visible, additionallyExcludedKeys);
+  const movies = recommendationsForCategory("movies", visible, additionallyExcludedKeys);
+  const shows = recommendationsForCategory("series", visible, additionallyExcludedKeys);
+  const discoveries = recommendationsForCategory("discovery", visible, additionallyExcludedKeys);
   useEffect(() => {
     if (hero) trackRecommendations([hero.media], "displayed");
   }, [hero]);

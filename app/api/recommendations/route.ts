@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     const fresh = request.nextUrl.searchParams.get("refresh") === "1";
     const [ratings, cachedPopular, cachedDiscovery] = await Promise.all([
       getRatings(),
-      fresh ? null : getCachedSearch("__recommendations_popular__", 1),
-      fresh ? null : getCachedSearch("__recommendations_discovery__", 1),
+      fresh ? null : getCachedSearch("__recommendations_popular_v2__", 1),
+      fresh ? null : getCachedSearch("__recommendations_discovery_v2__", 1),
     ]);
     const genericCandidates =
       cachedPopular && cachedDiscovery
@@ -34,13 +34,13 @@ export async function GET(request: NextRequest) {
     if (!cachedPopular || !cachedDiscovery || fresh) {
       await Promise.all([
         cacheSearch(
-          "__recommendations_popular__",
+          "__recommendations_popular_v2__",
           1,
           genericCandidates.filter(({ source }) => source === "popular").map(({ media }) => media),
           1,
         ),
         cacheSearch(
-          "__recommendations_discovery__",
+          "__recommendations_discovery_v2__",
           1,
           genericCandidates.filter(({ source }) => source === "discovery").map(({ media }) => media),
           1,

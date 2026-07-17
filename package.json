@@ -1,6 +1,6 @@
 {
   "name": "vidselector",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Lokale Film- und Serienbewertung mit persönlichen, regelbasierten Empfehlungen.",
   "private": true,
   "license": "UNLICENSED",

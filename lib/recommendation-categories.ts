@@ -2,8 +2,8 @@ import type { MediaType, ScoredRecommendation } from "@/lib/types";
 
 export const RECOMMENDATION_CATEGORIES = {
   more: {
-    title: "Weitere passende Titel",
-    subtitle: "Nach deinem persönlichen Score sortiert",
+    title: "Top-Auswahl für dich",
+    subtitle: "Die stärksten Empfehlungen aus Film und Serie",
   },
   movies: {
     title: "Passende Filme",
@@ -31,13 +31,13 @@ export function recommendationsForCategory(
 ): ScoredRecommendation[] {
   switch (slug) {
     case "more":
-      return recommendations.slice(1);
+      return recommendations.slice(1, 31);
     case "movies":
-      return recommendations.filter((item) => item.media.type === "movie");
+      return recommendations.slice(31).filter((item) => item.media.type === "movie" && item.source !== "discovery");
     case "series":
-      return recommendations.filter((item) => item.media.type === "tv");
+      return recommendations.slice(31).filter((item) => item.media.type === "tv" && item.source !== "discovery");
     case "discovery":
-      return recommendations.filter((item) => item.source === "discovery");
+      return recommendations.slice(31).filter((item) => item.source === "discovery");
   }
 }
 

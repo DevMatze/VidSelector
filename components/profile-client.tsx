@@ -9,6 +9,8 @@ interface Profile {
   createdAt: string;
   ratings: number;
   recommendations: number;
+  watchEntries: number;
+  ratedRecommendations: number;
 }
 
 export function ProfileClient() {
@@ -99,7 +101,17 @@ export function ProfileClient() {
         <div>
           <Sparkles size={21} />
           <strong>{profile.recommendations}</strong>
-          <span>Vorschläge erstellt</span>
+          <span>Aktuelle Vorschläge</span>
+        </div>
+        <div>
+          <Check size={21} />
+          <strong>{profile.watchEntries}</strong>
+          <span>Auf deiner Merkliste</span>
+        </div>
+        <div>
+          <Sparkles size={21} />
+          <strong>{profile.ratedRecommendations}</strong>
+          <span>Empfehlungen bewertet</span>
         </div>
         <div>
           <Award size={21} />

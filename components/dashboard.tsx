@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Compass, RefreshCw, Sparkles, Star } from "lucide-react";
+import { ArrowRight, Compass, EyeOff, RefreshCw, Sparkles, Star } from "lucide-react";
 import type { ScoredRecommendation, TasteProfile } from "@/lib/types";
 import { imageUrl } from "@/lib/tmdb";
 import { recommendationsForCategory } from "@/lib/recommendation-categories";
@@ -11,6 +11,7 @@ import { MediaTypeGroups } from "@/components/media-type-groups";
 import { RatingControls } from "@/components/rating-controls";
 import { DemoBanner } from "@/components/demo-banner";
 import { trackRecommendations } from "@/lib/recommendation-tracking";
+import { WatchControls } from "@/components/watch-controls";
 
 interface Payload {
   recommendations: ScoredRecommendation[];
@@ -163,11 +164,29 @@ export function Dashboard() {
               >
                 Details ansehen <ArrowRight size={16} />
               </Link>
-              <button className="button" onClick={() => setHeroIndex((index) => index + 1)}>
+              <button
+                className="button"
+                onClick={() => {
+                  trackRecommendations([hero.media], "skipped");
+                  setHeroIndex((index) => index + 1);
+                }}
+              >
                 Andere Empfehlung
               </button>
+              <button
+                className="button"
+                onClick={() => {
+                  trackRecommendations([hero.media], "dismissed");
+                  hide(hero);
+                }}
+              >
+                <EyeOff size={16} /> Nicht interessiert
+              </button>
             </div>
-            <RatingControls media={hero.media} onChange={() => hide(hero)} />
+            <div className="detail-personal-controls">
+              <RatingControls media={hero.media} onChange={() => hide(hero)} />
+              <WatchControls media={hero.media} initialStatus={hero.watchStatus ?? hero.media.watchStatus} />
+            </div>
           </div>
         </section>
       ) : (
@@ -183,8 +202,8 @@ export function Dashboard() {
 
       {more.length > 0 && (
         <RecommendationSection
-          title="Weitere passende Titel"
-          subtitle="Nach deinem persönlichen Score sortiert"
+          title="Top-Auswahl für dich"
+          subtitle="Die stärksten Empfehlungen aus Film und Serie"
           items={more}
           categorySlug="more"
           onRated={hide}
@@ -254,6 +273,7 @@ function RecommendationSection({
             media={item.media}
             reason={item.reasons[0]}
             onRated={() => onRated(item)}
+            onDismiss={() => onRated(item)}
             trackRecommendation
           />
         )}

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Compass, Search, Star, UserRound, Settings, Clapperboard } from "lucide-react";
+import { Bookmark, Compass, Search, Star, UserRound, Settings, Clapperboard } from "lucide-react";
 
 const links = [
   { href: "/", label: "Empfehlungen", icon: Compass },
   { href: "/search", label: "Suche", icon: Search },
   { href: "/library", label: "Meine Bewertungen", icon: Star },
+  { href: "/watchlist", label: "Merkliste", icon: Bookmark },
   { href: "/profile", label: "Mein Profil", icon: UserRound },
   { href: "/settings", label: "Einstellungen", icon: Settings },
 ];

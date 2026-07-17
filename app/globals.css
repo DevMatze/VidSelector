@@ -542,6 +542,56 @@ h2 {
   color: #9e83ff;
 }
 
+.card-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: start;
+}
+.card-controls .rating-wrap {
+  min-width: 0;
+}
+.watch-compact {
+  display: flex;
+}
+.watch-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #b9bdc7;
+  cursor: pointer;
+}
+.watch-button:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.08);
+}
+.watch-button.selected {
+  color: #ff91a0;
+  border-color: rgba(239, 64, 86, 0.35);
+  background: rgba(239, 64, 86, 0.12);
+}
+.dismiss-button:hover {
+  color: #ff9aa6;
+}
+.watch-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.watch-controls select {
+  min-height: 40px;
+  padding: 0 34px 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 .rating-wrap {
   width: 100%;
 }
@@ -608,6 +658,17 @@ h2 {
   display: flex;
   justify-content: center;
   margin-top: 26px;
+}
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 26px;
+}
+.load-more-row span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .status-panel {
@@ -1061,6 +1122,15 @@ h2 {
   gap: clamp(28px, 5vw, 58px);
   align-items: end;
 }
+.detail-personal-controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.detail-personal-controls .rating-wrap {
+  width: auto;
+}
 .detail-poster {
   position: relative;
   aspect-ratio: 2 / 3;
@@ -1264,7 +1334,7 @@ h2 {
 }
 .profile-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   gap: 13px;
   margin-bottom: 32px;
 }
@@ -1351,6 +1421,27 @@ h2 {
   display: grid;
   gap: 16px;
   max-width: 850px;
+}
+.backup-actions {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 20px 0 12px;
+}
+.backup-actions label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.backup-actions select {
+  min-height: 42px;
+  padding: 0 34px 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0b0d12;
+  color: var(--text);
 }
 .setting-title {
   display: flex;
@@ -1507,7 +1598,7 @@ h2 {
   }
   .mobile-nav {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     position: fixed;
     bottom: 0;
     left: 0;
@@ -1526,7 +1617,7 @@ h2 {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 700;
   }
   .mobile-nav a.active {

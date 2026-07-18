@@ -6,6 +6,8 @@ Alle wesentlichen Änderungen an VidSelector werden in diesem Dokument festgehal
 
 ## [Unreleased]
 
+## [0.3.0] – 2026-07-18
+
 ### Geändert
 
 - Entwicklungs- und Produktionsserver lauschen nun auf allen lokalen Netzwerkschnittstellen, sodass VidSelector von
@@ -99,7 +101,8 @@ Alle wesentlichen Änderungen an VidSelector werden in diesem Dokument festgehal
 - Responsive Netflix-inspirierte Karussells und eigene „Siehe mehr“-Seiten.
 - GitHub Actions, Dependabot, Security-Dokumentation, systemd-Benutzerservice und Demo-Modus.
 
-[Unreleased]: https://github.com/DevMatze/VidSelector/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/DevMatze/VidSelector/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/DevMatze/VidSelector/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/DevMatze/VidSelector/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DevMatze/VidSelector/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DevMatze/VidSelector/releases/tag/v0.1.0

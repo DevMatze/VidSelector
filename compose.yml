@@ -1,0 +1,48 @@
+name: "${VIDSELECTOR_COMPOSE_PROJECT:-vidselector}"
+
+services:
+  vidselector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vidselector:local
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "file:/data/vidselector.db"
+      TMDB_BEARER_TOKEN: "${TMDB_BEARER_TOKEN:-}"
+      TMDB_API_KEY: "${TMDB_API_KEY:-}"
+    ports:
+      - "${VIDSELECTOR_BIND_ADDRESS:-127.0.0.1}:${VIDSELECTOR_PORT:-3000}:3000"
+    volumes:
+      - vidselector_data:/data
+      - vidselector_backups:/app/backups
+      - type: bind
+        source: "${VIDSELECTOR_CONFIG_FILE:-./config.example}"
+        target: /app/config.yml
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  vidselector_data:
+    name: "${VIDSELECTOR_DATA_VOLUME:-vidselector_data}"
+  vidselector_backups:
+    name: "${VIDSELECTOR_BACKUP_VOLUME:-vidselector_backups}"

@@ -6,14 +6,14 @@ const mocks = vi.hoisted(() => ({
   getCachedMediaDetails: vi.fn(),
   cacheMediaDetails: vi.fn(),
   getMediaDetails: vi.fn(),
-  getWatchStatus: vi.fn(),
-  getWatchStatusMap: vi.fn(),
+  isBookmarked: vi.fn(),
+  getBookmarkMap: vi.fn(),
 }));
 
 vi.mock("@/lib/data", () => ({
   getRating: mocks.getRating,
-  getWatchStatus: mocks.getWatchStatus,
-  getWatchStatusMap: mocks.getWatchStatusMap,
+  isBookmarked: mocks.isBookmarked,
+  getBookmarkMap: mocks.getBookmarkMap,
 }));
 vi.mock("@/lib/media-cache", () => ({
   getCachedMediaDetails: mocks.getCachedMediaDetails,
@@ -52,8 +52,8 @@ describe("GET /api/media/[type]/[id] cache", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getRating.mockResolvedValue(null);
-    mocks.getWatchStatus.mockResolvedValue(null);
-    mocks.getWatchStatusMap.mockResolvedValue(new Map());
+    mocks.isBookmarked.mockResolvedValue(false);
+    mocks.getBookmarkMap.mockResolvedValue(new Map());
   });
 
   it("liefert vollständige lokale Details ohne TMDB-Anfrage", async () => {

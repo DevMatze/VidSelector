@@ -77,7 +77,6 @@ export function scoreRecommendations(
 
   const recommendations = [...unique.values()]
     .filter(({ media }) => !rated.has(`${media.type}:${media.tmdbId}`))
-    .filter(({ signal }) => !signal?.dismissed)
     .map((candidate): ScoredRecommendation => {
       const { media } = candidate;
       const voteConfidence = Math.min(1, Math.log10((media.voteCount ?? 0) + 1) / 4);

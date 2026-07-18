@@ -8,9 +8,9 @@ const mocks = vi.hoisted(() => ({
   cacheSearch: vi.fn(),
   purgeExpiredMediaCache: vi.fn(),
   searchMedia: vi.fn(),
-  getWatchStatusMap: vi.fn(),
+  getBookmarkMap: vi.fn(),
 }));
-vi.mock("@/lib/data", () => ({ getWatchStatusMap: mocks.getWatchStatusMap }));
+vi.mock("@/lib/data", () => ({ getBookmarkMap: mocks.getBookmarkMap }));
 
 vi.mock("@/lib/media-cache", () => ({
   findCachedMedia: mocks.findCachedMedia,
@@ -50,7 +50,7 @@ describe("GET /api/search cache", () => {
     vi.clearAllMocks();
     mocks.getCachedSearch.mockResolvedValue(null);
     mocks.purgeExpiredMediaCache.mockResolvedValue(undefined);
-    mocks.getWatchStatusMap.mockResolvedValue(new Map());
+    mocks.getBookmarkMap.mockResolvedValue(new Map());
   });
 
   it("liefert lokale Treffer ohne TMDB-Anfrage", async () => {
@@ -88,8 +88,8 @@ describe("GET /api/search cache", () => {
     const body = await response.json();
 
     expect(body.results).toEqual([
-      { ...result, watchStatus: null },
-      { ...second, watchStatus: null },
+      { ...result, bookmarked: false },
+      { ...second, bookmarked: false },
     ]);
     expect(mocks.searchMedia).toHaveBeenCalledOnce();
   });

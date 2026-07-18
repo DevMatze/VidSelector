@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   markRecommendationEvents: vi.fn(),
   getRecommendationSignals: vi.fn(),
   getRecommendationSourceAdjustments: vi.fn(),
-  getWatchStatusMap: vi.fn(),
+  getBookmarkMap: vi.fn(),
 }));
 vi.mock("@/lib/data", () => ({
   getRatings: mocks.getRatings,
@@ -23,7 +23,7 @@ vi.mock("@/lib/data", () => ({
   markRecommendationEvents: mocks.markRecommendationEvents,
   getRecommendationSignals: mocks.getRecommendationSignals,
   getRecommendationSourceAdjustments: mocks.getRecommendationSourceAdjustments,
-  getWatchStatusMap: mocks.getWatchStatusMap,
+  getBookmarkMap: mocks.getBookmarkMap,
 }));
 vi.mock("@/lib/media-cache", () => ({
   cacheMediaSummaries: mocks.cacheMediaSummaries,
@@ -40,7 +40,7 @@ vi.mock("@/lib/tmdb", () => ({
   TmdbError: class TmdbError extends Error {},
 }));
 
-import { GET } from "@/app/api/recommendations/route";
+import { GET, POST } from "@/app/api/recommendations/route";
 
 describe("GET /api/recommendations", () => {
   beforeEach(() => {
@@ -51,7 +51,7 @@ describe("GET /api/recommendations", () => {
     mocks.getCachedCandidatePeople.mockResolvedValue(new Map());
     mocks.getRecommendationSignals.mockResolvedValue(new Map());
     mocks.getRecommendationSourceAdjustments.mockResolvedValue({});
-    mocks.getWatchStatusMap.mockResolvedValue(new Map());
+    mocks.getBookmarkMap.mockResolvedValue(new Map());
     mocks.cacheSearch.mockResolvedValue(undefined);
     mocks.scoreRecommendations.mockReturnValue({ profile: { ratingCount: 0 }, recommendations: [] });
   });
@@ -89,5 +89,20 @@ describe("GET /api/recommendations", () => {
       [],
       [expect.objectContaining({ media, source: "popular" })],
     );
+  });
+});
+
+describe("POST /api/recommendations", () => {
+  it("akzeptiert kein entferntes Nicht-interessiert-Ereignis mehr", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", host: "localhost", origin: "http://localhost" },
+        body: JSON.stringify({ event: "dismissed", items: [{ type: "movie", tmdbId: 1 }] }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.markRecommendationEvents).not.toHaveBeenCalled();
   });
 });

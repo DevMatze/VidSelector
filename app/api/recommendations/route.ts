@@ -3,10 +3,10 @@ import { z } from "zod";
 import { apiError } from "@/lib/api-response";
 import {
   getCachedCandidatePeople,
+  getBookmarkMap,
   getRatings,
   getRecommendationSignals,
   getRecommendationSourceAdjustments,
-  getWatchStatusMap,
   markRecommendationEvents,
   saveRecommendationHistory,
 } from "@/lib/data";
@@ -53,34 +53,29 @@ export async function GET(request: NextRequest) {
       ...genericCandidates.map(({ media, source }) => ({ media, source })),
     ];
     const candidateMedia = candidates.map(({ media }) => media);
-    const [people, signals, watchStatuses, sourceAdjustments] = await Promise.all([
+    const [people, signals, bookmarks, sourceAdjustments] = await Promise.all([
       getCachedCandidatePeople(candidateMedia),
       getRecommendationSignals(candidateMedia),
-      getWatchStatusMap(candidateMedia),
+      getBookmarkMap(candidateMedia),
       getRecommendationSourceAdjustments(),
     ]);
     const result = scoreRecommendations(
       ratings,
-      candidates
-        .filter((candidate) => {
-          const status = watchStatuses.get(`${candidate.media.type}:${candidate.media.tmdbId}`);
-          return status !== "completed" && status !== "dropped";
-        })
-        .map((candidate) => ({
-          ...candidate,
-          people: people.get(`${candidate.media.type}:${candidate.media.tmdbId}`) ?? [],
-          signal: signals.get(`${candidate.media.type}:${candidate.media.tmdbId}`),
-          sourceAdjustment: sourceAdjustments[candidate.source] ?? 0,
-        })),
+      candidates.map((candidate) => ({
+        ...candidate,
+        people: people.get(`${candidate.media.type}:${candidate.media.tmdbId}`) ?? [],
+        signal: signals.get(`${candidate.media.type}:${candidate.media.tmdbId}`),
+        sourceAdjustment: sourceAdjustments[candidate.source] ?? 0,
+      })),
     );
     await saveRecommendationHistory(result.recommendations);
     const recommendations = result.recommendations.map((recommendation) => ({
       ...recommendation,
       media: {
         ...recommendation.media,
-        watchStatus: watchStatuses.get(`${recommendation.media.type}:${recommendation.media.tmdbId}`) ?? null,
+        bookmarked: bookmarks.has(`${recommendation.media.type}:${recommendation.media.tmdbId}`),
       },
-      watchStatus: watchStatuses.get(`${recommendation.media.type}:${recommendation.media.tmdbId}`) ?? null,
+      bookmarked: bookmarks.has(`${recommendation.media.type}:${recommendation.media.tmdbId}`),
     }));
     return NextResponse.json({ ...result, recommendations, demoMode: isDemoMode });
   } catch (error) {
@@ -89,7 +84,7 @@ export async function GET(request: NextRequest) {
 }
 
 const eventSchema = z.object({
-  event: z.enum(["displayed", "clicked", "skipped", "dismissed"]),
+  event: z.enum(["displayed", "clicked", "skipped"]),
   items: z
     .array(z.object({ type: z.enum(["movie", "tv"]), tmdbId: z.number().int().positive() }))
     .min(1)

@@ -1,10 +1,16 @@
 import type { NextConfig } from "next";
 
 const developmentScriptPolicy = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
+const privateDevOrigins = [
+  "127.0.0.1",
+  "10.*.*.*",
+  ...Array.from({ length: 16 }, (_, index) => `172.${index + 16}.*.*`),
+  "192.168.*.*",
+];
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  allowedDevOrigins: ["127.0.0.1"],
+  allowedDevOrigins: privateDevOrigins,
   images: {
     remotePatterns: [{ protocol: "https", hostname: "image.tmdb.org", pathname: "/t/p/**" }],
   },

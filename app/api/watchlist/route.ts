@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
     const filters = watchlistFilterSchema.parse(Object.fromEntries(request.nextUrl.searchParams));
     const allEntries = await getWatchEntries();
     let entries = [...allEntries];
-    if (filters.status) entries = entries.filter((entry) => entry.status === filters.status);
     if (filters.type) entries = entries.filter((entry) => entry.media.type === filters.type);
     if (filters.query) {
       const query = filters.query.toLocaleLowerCase("de");
@@ -34,10 +33,10 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     enforceRateLimit(request, "watchlist", 90, 60_000);
     const body = saveWatchEntrySchema.parse(await request.json());
-    const entry = await saveWatchEntry(body.media, body.status);
+    const entry = await saveWatchEntry(body.media);
     return NextResponse.json({ entry }, { status: 201 });
   } catch (error) {
-    return apiError(error, "Der Wiedergabestatus konnte nicht gespeichert werden.");
+    return apiError(error, "Der Titel konnte nicht auf der Merkliste gespeichert werden.");
   }
 }
 

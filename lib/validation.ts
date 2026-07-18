@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const mediaTypeSchema = z.enum(["movie", "tv"]);
 export const ratingValueSchema = z.enum(["like", "dislike", "neutral"]);
-export const watchStatusSchema = z.enum(["planned", "watching", "completed", "dropped"]);
 
 export const genreSchema = z.object({ id: z.number().int(), name: z.string().min(1).max(100) });
 
@@ -63,12 +62,10 @@ export const libraryFilterSchema = z.object({
 });
 
 export const saveWatchEntrySchema = z.object({
-  status: watchStatusSchema,
   media: mediaSummarySchema,
 });
 
 export const watchlistFilterSchema = z.object({
-  status: watchStatusSchema.optional(),
   type: mediaTypeSchema.optional(),
   query: z.string().max(200).optional(),
   sort: z.enum(["newest", "oldest", "title"]).default("newest"),

@@ -6,6 +6,20 @@ Alle wesentlichen Änderungen an VidSelector werden in diesem Dokument festgehal
 
 ## [Unreleased]
 
+### Geändert
+
+- Entwicklungs- und Produktionsserver lauschen nun auf allen lokalen Netzwerkschnittstellen, sodass VidSelector von
+  einem Smartphone im selben vertrauenswürdigen Heimnetz erreichbar ist.
+- „Nicht interessiert“ wurde entfernt und im großen Empfehlungsbanner durch die einfache Merken-Schaltfläche ersetzt;
+  zuvor ausgeblendete Titel werden wieder als normale Empfehlungskandidaten behandelt.
+- Das Kontingent von 50 Filmen beziehungsweise Serien gilt nur noch für die Empfehlungsrubriken auf der Startseite.
+- „Siehe mehr“-Seiten verwenden den vollständigen aktuell berechneten Empfehlungspool und laden ihn weiterhin in
+  20er-Schritten nach.
+- Die Merkliste wurde auf „gemerkt“ oder „nicht gemerkt“ reduziert; der pflegeintensive Wiedergabestatus entfällt.
+- Vorhandene Einträge mit „Möchte ich sehen“ oder „Angefangen“ werden als gemerkt übernommen. Alte Einträge mit
+  „Gesehen“ oder „Abgebrochen“ werden bei der Migration nicht auf die Merkliste übertragen.
+- Profil-Exporte verwenden Version 2 ohne Wiedergabestatus; Exporte der Version 1 bleiben importierbar.
+
 ## [0.2.1] – 2026-07-18
 
 ### Geändert

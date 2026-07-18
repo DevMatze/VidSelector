@@ -39,6 +39,8 @@ test("Startseite, Navigation und Suche sind bedienbar", async ({ page }) => {
   );
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Was schaust du als Nächstes?" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Merken: Dark" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /nicht interessiert/i })).toHaveCount(0);
   await page.getByRole("link", { name: "Suche", exact: true }).first().click();
   const search = page.getByRole("textbox", { name: "Filme und Serien suchen" });
   await search.fill("Dark");

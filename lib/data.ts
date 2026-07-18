@@ -8,7 +8,6 @@ import type {
   RatingValue,
   ScoredRecommendation,
   WatchEntryRecord,
-  WatchStatus,
 } from "@/lib/types";
 import { genreSchema, mediaDetailsSchema } from "@/lib/validation";
 import type { ProfileExport, ProfileImportMode } from "@/lib/profile-transfer";
@@ -94,10 +93,10 @@ export async function getRatings(): Promise<StoredRating[]> {
     include: { mediaItem: true },
     orderBy: { updatedAt: "desc" },
   });
-  const statusMap = await getWatchStatusMap(ratings.map((rating) => mediaItemToSummary(rating.mediaItem)));
+  const bookmarkMap = await getBookmarkMap(ratings.map((rating) => mediaItemToSummary(rating.mediaItem)));
   return ratings.map((rating) => {
     const record = ratingToRecord(rating);
-    return { ...record, watchStatus: statusMap.get(`${record.media.type}:${record.media.tmdbId}`) ?? null };
+    return { ...record, bookmarked: bookmarkMap.has(`${record.media.type}:${record.media.tmdbId}`) };
   });
 }
 
@@ -237,7 +236,6 @@ export interface RecommendationSignal {
   displayCount: number;
   clickCount: number;
   skipCount: number;
-  dismissed: boolean;
   lastShownAt?: string;
 }
 
@@ -255,7 +253,6 @@ export async function getRecommendationSignals(mediaItems: MediaSummary[]): Prom
         displayCount: entry.displayCount,
         clickCount: entry.clickCount,
         skipCount: entry.skipCount,
-        dismissed: Boolean(entry.dismissedAt),
         lastShownAt: entry.lastShownAt?.toISOString(),
       },
     ]),
@@ -308,7 +305,7 @@ export async function getCachedCandidatePeople(mediaItems: MediaSummary[]): Prom
 
 export async function markRecommendationEvents(
   items: Array<{ type: string; tmdbId: number }>,
-  event: "displayed" | "clicked" | "skipped" | "dismissed",
+  event: "displayed" | "clicked" | "skipped",
 ): Promise<void> {
   await ensureLocalUser();
   const mediaItems = await prisma.mediaItem.findMany({
@@ -326,16 +323,12 @@ export async function markRecommendationEvents(
             ? { clicked: true, clickCount: { increment: 1 } }
             : event === "skipped"
               ? { skipCount: { increment: 1 }, lastShownAt: now }
-              : event === "dismissed"
-                ? { dismissedAt: now, active: false }
-                : { displayed: true, lastShownAt: now, displayCount: { increment: 1 } },
+              : { displayed: true, lastShownAt: now, displayCount: { increment: 1 } },
         create: {
           userId: LOCAL_USER_ID,
           mediaItemId: item.id,
           score: 0,
           reasons: "[]",
-          active: event !== "dismissed",
-          dismissedAt: event === "dismissed" ? now : undefined,
           displayed: event === "displayed",
           clicked: event === "clicked",
           displayCount: event === "displayed" ? 1 : 0,
@@ -351,7 +344,6 @@ export async function markRecommendationEvents(
 function watchEntryToRecord(entry: WatchEntry & { mediaItem: MediaItem; user?: unknown }): StoredWatchEntry {
   return {
     id: entry.id,
-    status: entry.status as WatchStatus,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
     media: mediaItemToSummary(entry.mediaItem),
@@ -373,16 +365,16 @@ export async function getWatchEntries(): Promise<StoredWatchEntry[]> {
   });
 }
 
-export async function getWatchStatus(type: string, tmdbId: number): Promise<WatchStatus | null> {
+export async function isBookmarked(type: string, tmdbId: number): Promise<boolean> {
   await ensureLocalUser();
   const entry = await prisma.watchEntry.findFirst({
     where: { userId: LOCAL_USER_ID, mediaItem: { type, tmdbId } },
-    select: { status: true },
+    select: { id: true },
   });
-  return (entry?.status as WatchStatus | undefined) ?? null;
+  return Boolean(entry);
 }
 
-export async function getWatchStatusMap(mediaItems: MediaSummary[]): Promise<Map<string, WatchStatus>> {
+export async function getBookmarkMap(mediaItems: MediaSummary[]): Promise<Map<string, true>> {
   const clauses = mediaItems.map((media) => ({ tmdbId: media.tmdbId, type: media.type }));
   if (!clauses.length) return new Map();
   await ensureLocalUser();
@@ -390,12 +382,10 @@ export async function getWatchStatusMap(mediaItems: MediaSummary[]): Promise<Map
     where: { userId: LOCAL_USER_ID, mediaItem: { OR: clauses } },
     include: { mediaItem: { select: { tmdbId: true, type: true } } },
   });
-  return new Map(
-    entries.map((entry) => [`${entry.mediaItem.type}:${entry.mediaItem.tmdbId}`, entry.status as WatchStatus]),
-  );
+  return new Map(entries.map((entry) => [`${entry.mediaItem.type}:${entry.mediaItem.tmdbId}`, true]));
 }
 
-export async function saveWatchEntry(media: MediaSummary, status: WatchStatus): Promise<StoredWatchEntry> {
+export async function saveWatchEntry(media: MediaSummary): Promise<StoredWatchEntry> {
   await ensureLocalUser();
   const entry = await prisma.$transaction(async (tx) => {
     const mediaItem = await tx.mediaItem.upsert({
@@ -405,8 +395,8 @@ export async function saveWatchEntry(media: MediaSummary, status: WatchStatus): 
     });
     return tx.watchEntry.upsert({
       where: { userId_mediaItemId: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id } },
-      update: { status },
-      create: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id, status },
+      update: { updatedAt: new Date() },
+      create: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id },
       include: { mediaItem: true },
     });
   });
@@ -429,7 +419,7 @@ export async function exportProfileData(): Promise<ProfileExport> {
   ]);
   return {
     format: "vidselector-profile",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     profile: { name: user.name },
     ratings: ratings.map((rating) => ({
@@ -444,7 +434,6 @@ export async function exportProfileData(): Promise<ProfileExport> {
       type: entry.mediaItem.type as MediaSummary["type"],
       tmdbId: entry.mediaItem.tmdbId,
       title: entry.mediaItem.title,
-      status: entry.status as WatchStatus,
       createdAt: entry.createdAt.toISOString(),
       updatedAt: entry.updatedAt.toISOString(),
     })),
@@ -501,11 +490,10 @@ export async function importProfileData(data: ProfileExport, mode: ProfileImport
       });
       await tx.watchEntry.upsert({
         where: { userId_mediaItemId: { userId: LOCAL_USER_ID, mediaItemId: item.id } },
-        update: { status: watchEntry.status, updatedAt: watchEntry.updatedAt ? new Date(watchEntry.updatedAt) : now },
+        update: { updatedAt: watchEntry.updatedAt ? new Date(watchEntry.updatedAt) : now },
         create: {
           userId: LOCAL_USER_ID,
           mediaItemId: item.id,
-          status: watchEntry.status,
           createdAt: watchEntry.createdAt ? new Date(watchEntry.createdAt) : now,
           updatedAt: watchEntry.updatedAt ? new Date(watchEntry.updatedAt) : now,
         },

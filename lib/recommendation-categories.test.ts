@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   categorySupportsMediaType,
   categoryTitleForMediaType,
+  expandedRecommendationsForCategory,
   isRecommendationCategorySlug,
   RECOMMENDATIONS_PER_MEDIA_TYPE,
   recommendationsForCategory,
@@ -73,5 +74,24 @@ describe("recommendationsForCategory", () => {
 
   it("akzeptiert keine geerbten Objekteigenschaften als Kategorie", () => {
     expect(isRecommendationCategorySlug("toString")).toBe(false);
+  });
+});
+
+describe("expandedRecommendationsForCategory", () => {
+  it("entfernt das 50er-Limit auf den Siehe-mehr-Seiten", () => {
+    expect(expandedRecommendationsForCategory("more", recommendations)).toHaveLength(341);
+    expect(expandedRecommendationsForCategory("movies", recommendations)).toHaveLength(111);
+    expect(expandedRecommendationsForCategory("series", recommendations)).toHaveLength(110);
+    expect(expandedRecommendationsForCategory("discovery", recommendations)).toHaveLength(120);
+  });
+
+  it("liefert semantisch passende Titel, auch wenn sie auf der Startseite einer anderen Rubrik zugeordnet sind", () => {
+    expect(keys(expandedRecommendationsForCategory("movies", recommendations))).toContain("movie:2");
+    expect(
+      expandedRecommendationsForCategory("movies", recommendations).every((item) => item.source !== "discovery"),
+    ).toBe(true);
+    expect(
+      expandedRecommendationsForCategory("discovery", recommendations).every((item) => item.source === "discovery"),
+    ).toBe(true);
   });
 });

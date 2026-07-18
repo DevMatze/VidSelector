@@ -109,22 +109,6 @@ describe("scoreRecommendations", () => {
     expect(result.recommendations[0].reasons.join(" ")).toContain("Alex Beispiel");
   });
 
-  it("blendet ausdrücklich uninteressante Titel dauerhaft aus", () => {
-    const result = scoreRecommendations(
-      [],
-      [
-        {
-          media: candidateSciFi,
-          source: "popular",
-          signal: { displayCount: 1, clickCount: 0, skipCount: 0, dismissed: true },
-        },
-        { media: candidateRomance, source: "popular" },
-      ],
-    );
-
-    expect(result.recommendations.map((item) => item.media.tmdbId)).toEqual([4]);
-  });
-
   it("reduziert Wiederholungen und wertet einen Klick nur vorsichtig positiv", () => {
     const result = scoreRecommendations(
       [],
@@ -132,12 +116,12 @@ describe("scoreRecommendations", () => {
         {
           media: candidateSciFi,
           source: "popular",
-          signal: { displayCount: 8, clickCount: 0, skipCount: 2, dismissed: false },
+          signal: { displayCount: 8, clickCount: 0, skipCount: 2 },
         },
         {
           media: candidateRomance,
           source: "popular",
-          signal: { displayCount: 1, clickCount: 1, skipCount: 0, dismissed: false },
+          signal: { displayCount: 1, clickCount: 1, skipCount: 0 },
         },
       ],
     );

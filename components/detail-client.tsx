@@ -18,18 +18,18 @@ import {
   Tv,
   Users,
 } from "lucide-react";
-import type { MediaDetails, RatingValue, WatchStatus } from "@/lib/types";
+import type { MediaDetails, RatingValue } from "@/lib/types";
 import { imageUrl } from "@/lib/tmdb";
 import { RatingControls } from "@/components/rating-controls";
 import { MediaCard } from "@/components/media-card";
 import { MediaPoster } from "@/components/media-poster";
 import { MediaCarousel } from "@/components/media-carousel";
-import { WatchControls } from "@/components/watch-controls";
+import { BookmarkControl } from "@/components/bookmark-control";
 
 interface DetailsPayload {
   media: MediaDetails;
   rating: RatingValue | null;
-  watchStatus: WatchStatus | null;
+  bookmarked: boolean;
   demoMode: boolean;
 }
 
@@ -145,7 +145,7 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
             <p className="detail-overview">{media.overview}</p>
             <div className="detail-personal-controls">
               <RatingControls media={media} initialValue={data.rating} />
-              <WatchControls media={media} initialStatus={data.watchStatus} />
+              <BookmarkControl media={media} initialBookmarked={data.bookmarked} />
             </div>
             {media.trailerKey && (
               <a

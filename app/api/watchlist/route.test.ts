@@ -32,18 +32,17 @@ const media = {
 describe("/api/watchlist", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("filtert die persönliche Merkliste nach Status", async () => {
+  it("filtert die persönliche Merkliste nach Medientyp", async () => {
     mocks.getWatchEntries.mockResolvedValue([
-      { id: "1", status: "planned", createdAt: "2026-01-01", updatedAt: "2026-01-01", media },
+      { id: "1", createdAt: "2026-01-01", updatedAt: "2026-01-01", media },
       {
         id: "2",
-        status: "completed",
         createdAt: "2026-01-01",
         updatedAt: "2026-01-02",
-        media: { ...media, tmdbId: 2 },
+        media: { ...media, tmdbId: 2, type: "tv" },
       },
     ]);
-    const response = await GET(new NextRequest("http://localhost/api/watchlist?status=planned"));
+    const response = await GET(new NextRequest("http://localhost/api/watchlist?type=movie"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -51,18 +50,18 @@ describe("/api/watchlist", () => {
     expect(body.totalEntries).toBe(2);
   });
 
-  it("speichert Status und Bewertung voneinander unabhängig", async () => {
-    mocks.saveWatchEntry.mockResolvedValue({ id: "1", status: "planned", media });
+  it("speichert einen Merkeintrag ohne Wiedergabestatus", async () => {
+    mocks.saveWatchEntry.mockResolvedValue({ id: "1", media });
     const response = await POST(
       new Request("http://localhost/api/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json", Origin: "http://localhost", Host: "localhost" },
-        body: JSON.stringify({ media, status: "planned" }),
+        body: JSON.stringify({ media }),
       }),
     );
 
     expect(response.status).toBe(201);
-    expect(mocks.saveWatchEntry).toHaveBeenCalledWith(media, "planned");
+    expect(mocks.saveWatchEntry).toHaveBeenCalledWith(media);
   });
 
   it("blockiert profiländernde Cross-Site-Anfragen", async () => {
@@ -70,7 +69,7 @@ describe("/api/watchlist", () => {
       new Request("http://localhost/api/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Sec-Fetch-Site": "cross-site" },
-        body: JSON.stringify({ media, status: "planned" }),
+        body: JSON.stringify({ media }),
       }),
     );
 

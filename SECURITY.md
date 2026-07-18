@@ -19,4 +19,7 @@ Never include real TMDB tokens, `.env` contents or a copy of `prisma/dev.db` in 
 
 ## Scope
 
-VidSelector is designed to bind to `127.0.0.1` for one local user. Public hosting, multi-user access and exposing the SQLite database over a network are outside the supported threat model.
+VidSelector is designed for one user on a trusted private network. The web server listens on all local interfaces so it
+can be opened from another device on the same LAN, but it has no authentication: anyone who can reach port 3000 can use
+the application and change its data. Public hosting, router port forwarding, untrusted or guest networks, multi-user
+access and exposing the SQLite database itself over a network are outside the supported threat model.

@@ -16,7 +16,7 @@ export function WatchlistClient() {
   const [data, setData] = useState<Payload>({ entries: [], totalEntries: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({ query: "", status: "", type: "", sort: "newest" });
+  const [filters, setFilters] = useState({ query: "", type: "", sort: "newest" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,7 +49,7 @@ export function WatchlistClient() {
         <div>
           <p className="eyebrow">Deine persönliche Auswahl</p>
           <h1>Meine Merkliste</h1>
-          <p className="lead">Plane, beginne und verwalte Filme und Serien unabhängig von deiner Bewertung.</p>
+          <p className="lead">Alle Filme und Serien, die du dir für später merken möchtest.</p>
         </div>
         <div className="stat-pill">
           <strong>{data.entries.length}</strong>
@@ -65,16 +65,6 @@ export function WatchlistClient() {
             onChange={(event) => update("query", event.target.value)}
             placeholder="In der Merkliste suchen"
           />
-        </label>
-        <label>
-          <span className="sr-only">Wiedergabestatus</span>
-          <select value={filters.status} onChange={(event) => update("status", event.target.value)}>
-            <option value="">Alle Status</option>
-            <option value="planned">Möchte ich sehen</option>
-            <option value="watching">Angefangen</option>
-            <option value="completed">Gesehen</option>
-            <option value="dropped">Abgebrochen</option>
-          </select>
         </label>
         <label>
           <span className="sr-only">Typ</span>
@@ -112,7 +102,7 @@ export function WatchlistClient() {
             <SlidersHorizontal size={38} />
             <h2>Keine passenden Einträge</h2>
             <p>Mit den gewählten Filtern wurde kein Titel gefunden.</p>
-            <button className="button" onClick={() => setFilters({ query: "", status: "", type: "", sort: "newest" })}>
+            <button className="button" onClick={() => setFilters({ query: "", type: "", sort: "newest" })}>
               Filter zurücksetzen
             </button>
           </div>
@@ -120,7 +110,7 @@ export function WatchlistClient() {
           <div className="status-panel">
             <Bookmark size={38} />
             <h2>Deine Merkliste ist noch leer</h2>
-            <p>Speichere Titel als „Möchte ich sehen“, ohne sie bereits bewerten zu müssen.</p>
+            <p>Merke dir interessante Titel, ohne sie bereits bewerten zu müssen.</p>
             <Link className="button primary" href="/search">
               Titel entdecken
             </Link>
@@ -137,8 +127,8 @@ export function WatchlistClient() {
               key={entry.id}
               media={entry.media}
               rating={entry.rating}
-              watchStatus={entry.status}
-              onWatchStatusChange={() => void load()}
+              bookmarked
+              onBookmarkChange={() => void load()}
             />
           )}
         />

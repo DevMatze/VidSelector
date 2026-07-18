@@ -13,6 +13,20 @@ describe("request security", () => {
     ).toThrow(OriginError);
   });
 
+  it("akzeptiert schreibende Anfragen über dieselbe LAN-Adresse", () => {
+    expect(() =>
+      assertSameOrigin(
+        new Request("http://192.168.0.242:3000/api/watchlist", {
+          headers: {
+            host: "192.168.0.242:3000",
+            origin: "http://192.168.0.242:3000",
+            "sec-fetch-site": "same-origin",
+          },
+        }),
+      ),
+    ).not.toThrow();
+  });
+
   it("begrenzt wiederholte Anfragen pro Bereich", () => {
     const request = new Request("http://localhost", { headers: { "x-real-ip": "rate-limit-test" } });
     enforceRateLimit(request, "test", 1, 60_000);

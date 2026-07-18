@@ -544,15 +544,12 @@ h2 {
 
 .card-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   align-items: start;
 }
 .card-controls .rating-wrap {
   min-width: 0;
-}
-.watch-compact {
-  display: flex;
 }
 .watch-button {
   width: 34px;
@@ -575,21 +572,15 @@ h2 {
   border-color: rgba(239, 64, 86, 0.35);
   background: rgba(239, 64, 86, 0.12);
 }
-.dismiss-button:hover {
-  color: #ff9aa6;
-}
-.watch-controls label {
+.bookmark-control .button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
-.watch-controls select {
-  min-height: 40px;
-  padding: 0 34px 0 11px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface-2);
-  color: var(--text);
+.bookmark-control .button.selected {
+  color: #ffb0bb;
+  border-color: rgba(239, 64, 86, 0.35);
+  background: rgba(239, 64, 86, 0.12);
 }
 
 .rating-wrap {

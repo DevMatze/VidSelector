@@ -20,4 +20,5 @@ sed "s|@VIDSELECTOR_DIR@|$escaped_project_dir|g" "$template" > "$target"
 systemctl --user daemon-reload
 systemctl --user enable --now vidselector.service
 
-echo "VidSelector läuft unter http://127.0.0.1:3000"
+echo "VidSelector läuft auf diesem Gerät unter http://localhost:3000"
+echo "Im Heimnetz erreichst du VidSelector unter http://<LAN-IP-dieses-PCs>:3000"

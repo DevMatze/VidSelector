@@ -3,7 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { WatchControls } from "@/components/watch-controls";
+import { BookmarkControl } from "@/components/bookmark-control";
 import type { MediaSummary } from "@/lib/types";
 
 const media: MediaSummary = {
@@ -22,16 +22,16 @@ const media: MediaSummary = {
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("WatchControls", () => {
-  it("setzt einen unbekannten Titel kompakt auf die Merkliste", async () => {
+describe("BookmarkControl", () => {
+  it("merkt einen Titel ohne Wiedergabestatus", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ entry: {} }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);
-    render(<WatchControls media={media} compact />);
+    render(<BookmarkControl media={media} compact />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Zur Merkliste hinzufügen: Testfilm" }));
+    fireEvent.click(screen.getByRole("button", { name: "Merken: Testfilm" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ status: "planned", media: { tmdbId: 1 } });
-    expect(await screen.findByRole("button", { name: "Möchte ich sehen entfernen: Testfilm" })).toBeInTheDocument();
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ media });
+    expect(await screen.findByRole("button", { name: "Von der Merkliste entfernen: Testfilm" })).toBeInTheDocument();
   });
 });

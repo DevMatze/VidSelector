@@ -83,7 +83,7 @@ export function RatingControls({ media, initialValue = null, compact = false, on
           onClick={() => rate("neutral")}
           aria-pressed={value === "neutral"}
           aria-label={`Neutral bewertet: ${media.title}`}
-          title="Gesehen, neutral"
+          title="Neutral – keine Präferenz"
         >
           <Minus size={compact ? 17 : 19} />
           <span>{compact ? "" : "Neutral"}</span>

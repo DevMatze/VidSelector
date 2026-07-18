@@ -8,8 +8,8 @@ import { MediaCard } from "@/components/media-card";
 import { MediaTypeGroups } from "@/components/media-type-groups";
 import {
   categoryTitleForMediaType,
+  expandedRecommendationsForCategory,
   RECOMMENDATION_CATEGORIES,
-  recommendationsForCategory,
   type RecommendationCategorySlug,
 } from "@/lib/recommendation-categories";
 import type { MediaType, ScoredRecommendation, TasteProfile } from "@/lib/types";
@@ -49,7 +49,7 @@ export function CategoryClient({ slug, mediaType }: { slug: RecommendationCatego
   }, [load]);
   const items = useMemo(
     () =>
-      recommendationsForCategory(slug, data?.recommendations ?? [])
+      expandedRecommendationsForCategory(slug, data?.recommendations ?? [])
         .filter((item) => !mediaType || item.media.type === mediaType)
         .filter(({ media }) => !hidden.has(`${media.type}:${media.tmdbId}`)),
     [data, hidden, mediaType, slug],
@@ -117,7 +117,6 @@ export function CategoryClient({ slug, mediaType }: { slug: RecommendationCatego
               media={item.media}
               reason={item.reasons[0]}
               onRated={() => hide(item)}
-              onDismiss={() => hide(item)}
               trackRecommendation
             />
           )}

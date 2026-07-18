@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { EyeOff, Star, Sparkles } from "lucide-react";
-import type { MediaSummary, RatingValue, WatchStatus } from "@/lib/types";
+import { Star, Sparkles } from "lucide-react";
+import type { MediaSummary, RatingValue } from "@/lib/types";
 import { MediaPoster } from "@/components/media-poster";
 import { RatingControls } from "@/components/rating-controls";
 import { trackRecommendations } from "@/lib/recommendation-tracking";
-import { WatchControls } from "@/components/watch-controls";
+import { BookmarkControl } from "@/components/bookmark-control";
 
 interface Props {
   media: MediaSummary;
@@ -16,9 +16,8 @@ interface Props {
   onRated?: (value: RatingValue | null) => void;
   priority?: boolean;
   trackRecommendation?: boolean;
-  watchStatus?: WatchStatus | null;
-  onWatchStatusChange?: (status: WatchStatus | null) => void;
-  onDismiss?: () => void;
+  bookmarked?: boolean;
+  onBookmarkChange?: (bookmarked: boolean) => void;
 }
 
 export function MediaCard({
@@ -28,9 +27,8 @@ export function MediaCard({
   onRated,
   priority,
   trackRecommendation = false,
-  watchStatus = media.watchStatus ?? null,
-  onWatchStatusChange,
-  onDismiss,
+  bookmarked = media.bookmarked ?? false,
+  onBookmarkChange,
 }: Props) {
   const year = media.releaseDate?.slice(0, 4) || "—";
   const cardRef = useRef<HTMLElement>(null);
@@ -90,27 +88,13 @@ export function MediaCard({
         )}
         <div className="card-controls">
           <RatingControls media={media} initialValue={rating} compact onChange={onRated} />
-          <WatchControls
-            key={watchStatus ?? "none"}
+          <BookmarkControl
+            key={bookmarked ? "bookmarked" : "not-bookmarked"}
             media={media}
-            initialStatus={watchStatus}
+            initialBookmarked={bookmarked}
             compact
-            onChange={onWatchStatusChange}
+            onChange={onBookmarkChange}
           />
-          {trackRecommendation && (
-            <button
-              className="watch-button dismiss-button"
-              type="button"
-              title="Nicht interessiert"
-              aria-label={`Nicht interessiert: ${media.title}`}
-              onClick={() => {
-                trackRecommendations([media], "dismissed");
-                onDismiss?.();
-              }}
-            >
-              <EyeOff size={16} />
-            </button>
-          )}
         </div>
       </div>
     </article>

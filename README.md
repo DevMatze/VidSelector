@@ -24,7 +24,7 @@ VidSelector ist eine lokale Einzelplatz-Web-App, mit der du Filme und Serien bew
 ## Was VidSelector besonders macht
 
 - **Eigene Bewertungen:** `Gefällt mir`, `Neutral` oder `Nicht meins`
-- **Unabhängige Merkliste:** `Möchte ich sehen`, `Angefangen`, `Gesehen` oder `Abgebrochen`
+- **Einfache Merkliste:** interessante Titel mit einem Klick merken oder wieder entfernen
 - **Regelbasierte Empfehlungen:** nachvollziehbare Scores statt Black-Box-KI
 - **Filme und Serien getrennt:** in jeder Kategorie, Suche und Bibliothek
 - **Netflix-artige Navigation:** Karussells, dynamische Pfeile und eigene „Siehe mehr“-Seiten
@@ -64,7 +64,7 @@ werden ausgeschlossen; negative Muster senken den Score ähnlicher Kandidaten ak
 gewichtete Klicks und ausdrücklich übersprungene Titel verbessern die Rotation, ohne eine echte Bewertung zu ersetzen.
 Die zentralen Gewichte liegen in [`lib/recommendations/config.ts`](lib/recommendations/config.ts).
 
-### Eindeutige Kategorien ohne Wiederholungen
+### Begrenzte Startseite, vollständige Kategorien
 
 - **Top-Auswahl für dich:** bis zu 50 der stärksten Filme und zusätzlich bis zu 50 der stärksten Serien
 - **Passende Filme:** bis zu 50 weitere Filme außerhalb der Top- und Entdeckungsauswahl
@@ -72,14 +72,16 @@ Die zentralen Gewichte liegen in [`lib/recommendations/config.ts`](lib/recommend
 - **Etwas Neues ausprobieren:** jeweils bis zu 50 eigene Film- und Serienentdeckungen außerhalb der bisherigen Auswahl
 
 Die Kontingente für Filme und Serien werden unabhängig voneinander gezählt. Ein Titel wird auf der Startseite trotzdem
-nur einer dieser Rubriken zugeordnet. Die zugehörigen „Siehe mehr“-Seiten verwenden dieselbe eindeutige Aufteilung und
-laden aus Performancegründen zunächst 20 Titel je Medientyp.
+nur einer dieser Rubriken zugeordnet. Auf den zugehörigen „Siehe mehr“-Seiten entfällt das 50er-Limit: Sie zeigen den
+vollständigen aktuell berechneten Empfehlungspool der gewählten Kategorie, zunächst 20 Titel und danach in
+20er-Schritten. Weil diese erweiterten Ansichten semantisch statt nach den Startseitenkontingenten filtern, kann ein
+starker Titel dort in mehreren passenden Ansichten vorkommen.
 
-### Bewertung, Merkliste und Feedback
+### Bewertung und Merkliste
 
-Eine Bewertung beschreibt deinen Geschmack. Der Wiedergabestatus verwaltet dagegen, ob du einen Titel erst sehen
-möchtest, bereits angefangen, gesehen oder abgebrochen hast. „Nicht interessiert“ blendet nur den konkreten Vorschlag
-aus und wertet nicht automatisch dessen gesamtes Genre ab.
+Eine Bewertung beschreibt deinen Geschmack: „Gefällt mir“ stärkt ähnliche Merkmale, „Nicht meins“ schwächt sie und
+„Neutral“ speichert den Titel ohne positive oder negative Präferenz. Die Merkliste ist davon unabhängig und dient nur
+dazu, interessante Titel für später zu speichern.
 
 ### Anime oder Animation?
 
@@ -110,7 +112,14 @@ npm run setup
 npm run dev
 ```
 
-Öffne anschließend [http://localhost:3000](http://localhost:3000).
+Öffne anschließend auf dem Computer [http://localhost:3000](http://localhost:3000). Der Entwicklungsserver lauscht
+auch im lokalen Netzwerk. Befinden sich Computer und Smartphone im selben WLAN, öffnest du auf dem Smartphone zum
+Beispiel `http://192.168.0.242:3000`. Verwende dabei die tatsächliche LAN-IP des Computers; unter Linux zeigt sie
+beispielsweise `hostname -I` an.
+
+Falls die Seite vom Smartphone nicht erreichbar ist, prüfe, ob die Geräte wirklich im selben Netz sind und ob die
+lokale Firewall eingehende TCP-Verbindungen auf Port 3000 aus dem privaten Netz erlaubt. Eine Portfreigabe im Router
+ist dafür weder nötig noch empfohlen.
 
 `npm run setup` wendet die Datenbankmigrationen an und erstellt ein kleines Beispielprofil. Für einen leeren Start genügt:
 
@@ -152,7 +161,8 @@ systemctl --user restart vidselector
 journalctl --user -u vidselector -f
 ```
 
-Der Service bindet ausschließlich an `127.0.0.1:3000` und ist damit nicht aus dem Netzwerk erreichbar.
+Der Service lauscht auf `0.0.0.0:3000`. Dadurch bleibt er auf dem Computer über `http://localhost:3000` und von einem
+Gerät im selben Heimnetz über `http://<LAN-IP-des-Computers>:3000` erreichbar.
 
 ## Lokaler Cache und Datenhaltung
 
@@ -240,9 +250,13 @@ deploy/                systemd-Servicevorlage
 - Herkunftsprüfung für schreibende API-Anfragen
 - Begrenzung API-intensiver Routen
 - lokale, validierte Datenexporte und Sicherungen
-- Security-Header und lokale Netzwerkbindung im Produktionsbetrieb
+- Security-Header und Herkunftsprüfung schreibender Anfragen
 
-VidSelector ist ausdrücklich für einen lokalen Benutzer ausgelegt. Wer die Anwendung öffentlich erreichbar macht, muss vorher eine echte Authentifizierung, einen geeigneten öffentlichen Betrieb und eine eigene Sicherheitsprüfung ergänzen.
+VidSelector besitzt keine Anmeldung und ist ausdrücklich für einen einzelnen Benutzer in einem vertrauenswürdigen
+privaten Heimnetz ausgelegt. Jedes Gerät, das den Server auf Port 3000 erreicht, kann die Anwendung verwenden und deine
+Bewertungen oder Merkliste ändern. Richte daher keine Portweiterleitung im Router ein und verwende VidSelector nicht in
+einem öffentlichen oder nicht vertrauenswürdigen WLAN. Für einen öffentlichen Betrieb wären zuvor eine echte
+Authentifizierung, TLS und eine eigene Sicherheitsprüfung erforderlich.
 
 Sicherheitsprobleme bitte nicht als öffentliches Issue melden. Hinweise stehen in [`SECURITY.md`](SECURITY.md).
 

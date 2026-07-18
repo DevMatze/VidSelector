@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Compass, EyeOff, RefreshCw, Sparkles, Star } from "lucide-react";
+import { ArrowRight, Compass, RefreshCw, Sparkles, Star } from "lucide-react";
 import type { ScoredRecommendation, TasteProfile } from "@/lib/types";
 import { imageUrl } from "@/lib/tmdb";
 import { recommendationsForCategory } from "@/lib/recommendation-categories";
@@ -11,7 +11,7 @@ import { MediaTypeGroups } from "@/components/media-type-groups";
 import { RatingControls } from "@/components/rating-controls";
 import { DemoBanner } from "@/components/demo-banner";
 import { trackRecommendations } from "@/lib/recommendation-tracking";
-import { WatchControls } from "@/components/watch-controls";
+import { BookmarkControl } from "@/components/bookmark-control";
 
 interface Payload {
   recommendations: ScoredRecommendation[];
@@ -172,19 +172,13 @@ export function Dashboard() {
               >
                 Andere Empfehlung
               </button>
-              <button
-                className="button"
-                onClick={() => {
-                  trackRecommendations([hero.media], "dismissed");
-                  hide(hero);
-                }}
-              >
-                <EyeOff size={16} /> Nicht interessiert
-              </button>
+              <BookmarkControl
+                media={hero.media}
+                initialBookmarked={hero.bookmarked ?? hero.media.bookmarked ?? false}
+              />
             </div>
             <div className="detail-personal-controls">
               <RatingControls media={hero.media} onChange={() => hide(hero)} />
-              <WatchControls media={hero.media} initialStatus={hero.watchStatus ?? hero.media.watchStatus} />
             </div>
           </div>
         </section>
@@ -272,7 +266,6 @@ function RecommendationSection({
             media={item.media}
             reason={item.reasons[0]}
             onRated={() => onRated(item)}
-            onDismiss={() => onRated(item)}
             trackRecommendation
           />
         )}

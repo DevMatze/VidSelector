@@ -12,7 +12,7 @@ import { POST } from "@/app/api/profile/import/route";
 
 const data = {
   format: "vidselector-profile",
-  version: 1,
+  version: 2,
   exportedAt: "2026-07-18T00:00:00.000Z",
   profile: { name: "Filmfan" },
   ratings: [],

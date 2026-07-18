@@ -151,7 +151,7 @@ export function LibraryClient() {
               key={rating.id}
               media={rating.media}
               rating={rating.value}
-              watchStatus={rating.watchStatus}
+              bookmarked={rating.bookmarked}
               onRated={(value) => {
                 if (!value) void load();
               }}

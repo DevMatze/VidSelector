@@ -51,6 +51,22 @@ export function recommendationsForCategory(
   return { more: top, movies, series, discovery }[slug];
 }
 
+export function expandedRecommendationsForCategory(
+  slug: RecommendationCategorySlug,
+  recommendations: ScoredRecommendation[],
+): ScoredRecommendation[] {
+  switch (slug) {
+    case "more":
+      return recommendations;
+    case "movies":
+      return recommendations.filter((item) => item.media.type === "movie" && item.source !== "discovery");
+    case "series":
+      return recommendations.filter((item) => item.media.type === "tv" && item.source !== "discovery");
+    case "discovery":
+      return recommendations.filter((item) => item.source === "discovery");
+  }
+}
+
 function takePerMediaType(
   recommendations: ScoredRecommendation[],
   predicate: (item: ScoredRecommendation) => boolean,

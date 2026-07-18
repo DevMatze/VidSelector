@@ -6,6 +6,14 @@ Alle wesentlichen Änderungen an VidSelector werden in diesem Dokument festgehal
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Docker- und Docker-Compose-Unterstützung mit nicht privilegiertem Laufzeitbenutzer, automatischen
+  Datenbanksicherungen vor Migrationen, persistenten Volumes für SQLite und Backups sowie sicherer lokaler
+  Portbindung als Standard.
+- Datenbankbasierter Healthcheck unter `/api/health` für Containerüberwachung und automatisierte Smoke-Tests.
+- Docker-Schnellstart, Konfiguration, LAN-Freigabe und Upgrade-Anleitung in allen vier README-Sprachen.
+
 ## [1.0.0] – 2026-07-18
 
 ### Hinzugefügt

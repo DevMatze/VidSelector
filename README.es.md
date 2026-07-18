@@ -50,13 +50,30 @@ VidSelector es una aplicación web local para valorar películas y series y conv
 
 ## Inicio rápido
 
-### Requisitos
+### Docker (recomendado para el autoalojamiento)
+
+Requisito: Docker Engine con el complemento Docker Compose.
+
+```bash
+git clone https://github.com/DevMatze/VidSelector.git
+cd VidSelector
+docker compose up -d --build
+```
+
+Abre [http://localhost:3000](http://localhost:3000). Sin credenciales de TMDB, el contenedor se inicia directamente con el catálogo de demostración integrado. Comprueba el estado y los registros con:
+
+```bash
+docker compose ps
+docker compose logs -f vidselector
+```
+
+### Desde el código fuente
+
+Requisitos:
 
 - Node.js 20 o posterior (CI utiliza Node.js 22)
 - npm
 - opcional: acceso gratuito a la API de TMDB para usar el catálogo completo
-
-### Instalación
 
 ```bash
 git clone https://github.com/DevMatze/VidSelector.git
@@ -145,6 +162,38 @@ No informes de problemas de seguridad mediante una incidencia pública. Sigue la
 - El código fuente es visible públicamente, pero no cuenta con una licencia de código abierto; consulta [Licencia](#licencia).
 
 ## Instalación y configuración completas
+
+### Configuración, almacenamiento y actualizaciones con Docker
+
+Docker almacena la base de datos SQLite y las copias de seguridad en volúmenes con nombre separados. Los datos personales se conservan al recrear o actualizar el contenedor:
+
+```text
+vidselector_data      /data/vidselector.db
+vidselector_backups   /app/backups
+```
+
+Para activar TMDB, copia `.env.example` como `.env`, introduce `TMDB_BEARER_TOKEN` o `TMDB_API_KEY` y vuelve a crear el contenedor:
+
+```bash
+cp .env.example .env
+docker compose up -d --force-recreate
+```
+
+La configuración segura predeterminada publica VidSelector solo en `127.0.0.1`. Para acceder desde una red doméstica de confianza, define `VIDSELECTOR_BIND_ADDRESS=0.0.0.0` en `.env`. No uses esta opción en redes públicas o que no sean de confianza ni configures el reenvío de puertos del router.
+
+Para utilizar ajustes propios, copia `config.example` como `config.yml` y define `VIDSELECTOR_CONFIG_FILE=./config.yml` en `.env`. El archivo se monta en el contenedor como solo lectura.
+
+Antes de actualizar, crea una copia adicional de la base de datos, reconstruye la imagen y vuelve a crear el contenedor:
+
+```bash
+docker compose exec vidselector ./node_modules/.bin/tsx scripts/backup-database.ts
+git pull --ff-only
+docker compose build --pull
+docker compose up -d
+docker compose ps
+```
+
+El script de inicio crea otra copia antes de aplicar las migraciones pendientes de Prisma. `docker compose down` elimina el contenedor, pero conserva ambos volúmenes. **No utilices `docker compose down -v` salvo que quieras eliminar deliberadamente la base de datos y las copias.**
 
 ### Acceso desde la red local
 

@@ -50,13 +50,30 @@ VidSelector is a local web app for rating movies and TV shows and turning those 
 
 ## Quick start
 
-### Requirements
+### Docker (recommended for self-hosting)
+
+Requirements: Docker Engine with the Docker Compose plugin.
+
+```bash
+git clone https://github.com/DevMatze/VidSelector.git
+cd VidSelector
+docker compose up -d --build
+```
+
+Open [http://localhost:3000](http://localhost:3000). With no TMDB credentials, the container starts directly with the built-in demo catalog. Check its state and logs with:
+
+```bash
+docker compose ps
+docker compose logs -f vidselector
+```
+
+### From source
+
+Requirements:
 
 - Node.js 20 or newer (CI uses Node.js 22)
 - npm
 - optional: free TMDB API access for the full catalog
-
-### Installation
 
 ```bash
 git clone https://github.com/DevMatze/VidSelector.git
@@ -145,6 +162,38 @@ Please do not report security issues through a public issue. Follow [`SECURITY.m
 - The source is publicly visible but is not licensed as open source; see [License](#license).
 
 ## Full installation and configuration
+
+### Docker configuration, storage, and upgrades
+
+Docker stores the SQLite database and backups in separate named volumes. Recreating or updating the container therefore keeps personal data intact:
+
+```text
+vidselector_data      /data/vidselector.db
+vidselector_backups   /app/backups
+```
+
+To enable TMDB, copy `.env.example` to `.env`, enter either `TMDB_BEARER_TOKEN` or `TMDB_API_KEY`, and recreate the container:
+
+```bash
+cp .env.example .env
+docker compose up -d --force-recreate
+```
+
+The safe default publishes VidSelector only on `127.0.0.1`. For access from a trusted home network, set `VIDSELECTOR_BIND_ADDRESS=0.0.0.0` in `.env`. Do not use this setting on public or untrusted networks and do not configure router port forwarding.
+
+For custom application settings, copy `config.example` to `config.yml` and set `VIDSELECTOR_CONFIG_FILE=./config.yml` in `.env`. The file is mounted read-only into the container.
+
+Before an upgrade, create an additional database backup, then rebuild and recreate the container:
+
+```bash
+docker compose exec vidselector ./node_modules/.bin/tsx scripts/backup-database.ts
+git pull --ff-only
+docker compose build --pull
+docker compose up -d
+docker compose ps
+```
+
+The entrypoint creates another backup before applying pending Prisma migrations. `docker compose down` removes the container but retains both named volumes. **Do not use `docker compose down -v` unless you intentionally want to delete the database and backups.**
 
 ### Access from the local network
 

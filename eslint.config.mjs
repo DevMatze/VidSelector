@@ -11,5 +11,6 @@ export default defineConfig([
     "test-results/**",
     "prisma/*.db*",
     "next-env.d.ts",
+    "**/*.d.mts",
   ]),
 ]);

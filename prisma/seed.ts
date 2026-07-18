@@ -1,11 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 import { getDemoDetails, DEMO_CATALOG } from "../lib/demo-data";
+import { appConfig } from "../lib/config.mjs";
 
 const prisma = new PrismaClient();
 const userId = "local-user";
 
 async function main() {
-  await prisma.user.upsert({ where: { id: userId }, update: {}, create: { id: userId, name: "Filmfan" } });
+  await prisma.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: { id: userId, name: "Filmfan", language: appConfig.localization.default_language },
+  });
+  await prisma.user.updateMany({
+    where: { id: userId, language: null },
+    data: { language: appConfig.localization.default_language },
+  });
   const examples: Array<[number, "movie" | "tv", "like" | "dislike" | "neutral"]> = [
     [70523, "tv", "like"],
     [66732, "tv", "like"],
@@ -40,9 +49,9 @@ async function main() {
       detailsExpiresAt,
     };
     const stored = await prisma.mediaItem.upsert({
-      where: { tmdbId_type: { tmdbId, type } },
+      where: { tmdbId_type_scopeId: { tmdbId, type, scopeId: userId } },
       update: mediaData,
-      create: { tmdbId, type, ...mediaData },
+      create: { tmdbId, type, scopeId: userId, ...mediaData },
     });
     await prisma.rating.upsert({
       where: { userId_mediaItemId: { userId, mediaItemId: stored.id } },

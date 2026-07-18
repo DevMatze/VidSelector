@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   getProfile: vi.fn(),
   getRatings: vi.fn(),
   resetProfile: vi.fn(),
-  updateProfileName: vi.fn(),
+  updateProfile: vi.fn(),
   buildTasteProfile: vi.fn(),
   maintainMediaCache: vi.fn(),
   maintainAutomaticProfileBackups: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock("@/lib/data", () => ({
   getProfile: mocks.getProfile,
   getRatings: mocks.getRatings,
   resetProfile: mocks.resetProfile,
-  updateProfileName: mocks.updateProfileName,
+  updateProfile: mocks.updateProfile,
 }));
 vi.mock("@/lib/recommendations/engine", () => ({ buildTasteProfile: mocks.buildTasteProfile }));
 vi.mock("@/lib/media-cache", () => ({ maintainMediaCache: mocks.maintainMediaCache }));
@@ -56,6 +56,31 @@ describe("/api/profile", () => {
       }),
     );
     expect(response.status).toBe(403);
-    expect(mocks.updateProfileName).not.toHaveBeenCalled();
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("speichert Name und unterstützte Profilsprache gemeinsam", async () => {
+    mocks.updateProfile.mockResolvedValue({ name: "Marcel", language: "fr" });
+    const response = await PATCH(
+      new Request("http://localhost/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Origin: "http://localhost", Host: "localhost" },
+        body: JSON.stringify({ name: "Marcel", language: "fr" }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.updateProfile).toHaveBeenCalledWith("Marcel", "fr");
+  });
+
+  it("weist nicht unterstützte Profilsprache ab", async () => {
+    const response = await PATCH(
+      new Request("http://localhost/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Marcel", language: "it" }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
   });
 });

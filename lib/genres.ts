@@ -1,4 +1,5 @@
 import type { Genre, MediaSummary } from "@/lib/types";
+import type { UiLanguage } from "@/lib/i18n";
 
 const GENRE_NAMES: Record<number, string> = {
   12: "Abenteuer",
@@ -35,6 +36,81 @@ const COMBINED_GENRE_FACETS: Record<number, string[]> = {
   10765: ["Science-Fiction", "Fantasy"],
   10768: ["Krieg", "Politik"],
 };
+
+const LOCALIZED_GENRE_NAMES: Record<Exclude<UiLanguage, "de">, Record<string, string>> = {
+  en: {
+    Abenteuer: "Adventure",
+    Komödie: "Comedy",
+    Historie: "History",
+    Krimi: "Crime",
+    Dokumentation: "Documentary",
+    Musik: "Music",
+    Romanze: "Romance",
+    Familie: "Family",
+    Krieg: "War",
+    Politik: "Politics",
+    Kinder: "Kids",
+    Nachrichten: "News",
+    "TV-Film": "TV Movie",
+    Sonstiges: "Other",
+    "Action & Abenteuer": "Action & Adventure",
+    "Krieg & Politik": "War & Politics",
+  },
+  es: {
+    Action: "Acción",
+    Abenteuer: "Aventura",
+    Fantasy: "Fantasía",
+    Animation: "Animación",
+    Drama: "Drama",
+    Horror: "Terror",
+    Thriller: "Suspense",
+    Komödie: "Comedia",
+    Historie: "Historia",
+    Krimi: "Crimen",
+    Dokumentation: "Documental",
+    "Science-Fiction": "Ciencia ficción",
+    Mystery: "Misterio",
+    Musik: "Música",
+    Romanze: "Romance",
+    Familie: "Familia",
+    Krieg: "Bélica",
+    Politik: "Política",
+    Kinder: "Niños",
+    Nachrichten: "Noticias",
+    "TV-Film": "Película de TV",
+    Sonstiges: "Otros",
+    "Action & Abenteuer": "Acción y aventura",
+    "Science-Fiction & Fantasy": "Ciencia ficción y fantasía",
+    "Krieg & Politik": "Guerra y política",
+  },
+  fr: {
+    Abenteuer: "Aventure",
+    Fantasy: "Fantastique",
+    Drama: "Drame",
+    Horror: "Horreur",
+    Komödie: "Comédie",
+    Historie: "Histoire",
+    Krimi: "Crime",
+    Dokumentation: "Documentaire",
+    Mystery: "Mystère",
+    Musik: "Musique",
+    Romanze: "Romance",
+    Familie: "Familial",
+    Krieg: "Guerre",
+    Politik: "Politique",
+    Kinder: "Kids",
+    Nachrichten: "Actualités",
+    "TV-Film": "Téléfilm",
+    Sonstiges: "Autre",
+    "Action & Abenteuer": "Action & Aventure",
+    "Science-Fiction & Fantasy": "Science-Fiction & Fantastique",
+    "Krieg & Politik": "Guerre & Politique",
+  },
+};
+
+export function localizeGenreName(name: string, language: UiLanguage): string {
+  return language === "de" ? name : (LOCALIZED_GENRE_NAMES[language][name] ?? name);
+}
 
 export function genreNameForId(id: number): string | undefined {
   return GENRE_NAMES[id];

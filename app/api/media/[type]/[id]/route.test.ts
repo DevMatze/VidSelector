@@ -8,12 +8,14 @@ const mocks = vi.hoisted(() => ({
   getMediaDetails: vi.fn(),
   isBookmarked: vi.fn(),
   getBookmarkMap: vi.fn(),
+  getProfileLanguage: vi.fn(),
 }));
 
 vi.mock("@/lib/data", () => ({
   getRating: mocks.getRating,
   isBookmarked: mocks.isBookmarked,
   getBookmarkMap: mocks.getBookmarkMap,
+  getProfileLanguage: mocks.getProfileLanguage,
 }));
 vi.mock("@/lib/media-cache", () => ({
   getCachedMediaDetails: mocks.getCachedMediaDetails,
@@ -54,6 +56,7 @@ describe("GET /api/media/[type]/[id] cache", () => {
     mocks.getRating.mockResolvedValue(null);
     mocks.isBookmarked.mockResolvedValue(false);
     mocks.getBookmarkMap.mockResolvedValue(new Map());
+    mocks.getProfileLanguage.mockResolvedValue("de");
   });
 
   it("liefert vollständige lokale Details ohne TMDB-Anfrage", async () => {
@@ -75,7 +78,7 @@ describe("GET /api/media/[type]/[id] cache", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ media: details, cacheHit: false });
-    expect(mocks.getMediaDetails).toHaveBeenCalledWith("movie", 27205);
+    expect(mocks.getMediaDetails).toHaveBeenCalledWith("movie", 27205, "de");
     expect(mocks.cacheMediaDetails).toHaveBeenCalledWith(details);
   });
 });

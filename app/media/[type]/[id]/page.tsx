@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DetailClient } from "@/components/detail-client";
+import { getProfileLanguage } from "@/lib/data";
 import { cacheMediaDetails, getCachedMediaDetails } from "@/lib/media-cache";
 import { getMediaDetails } from "@/lib/tmdb";
 import type { MediaType } from "@/lib/types";
@@ -19,8 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const parsed = await parseParams(params);
   if (!parsed) return {};
   try {
-    const cached = await getCachedMediaDetails(parsed.type, parsed.id);
-    const media = cached ?? (await getMediaDetails(parsed.type, parsed.id));
+    const [cached, language] = await Promise.all([getCachedMediaDetails(parsed.type, parsed.id), getProfileLanguage()]);
+    const media = cached ?? (await getMediaDetails(parsed.type, parsed.id, language));
     if (media && !cached) await cacheMediaDetails(media);
     return media ? { title: media.title, description: media.overview.slice(0, 160) } : {};
   } catch {

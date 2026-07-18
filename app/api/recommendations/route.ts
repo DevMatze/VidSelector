@@ -4,6 +4,7 @@ import { apiError } from "@/lib/api-response";
 import {
   getCachedCandidatePeople,
   getBookmarkMap,
+  getProfileLanguage,
   getRatings,
   getRecommendationSignals,
   getRecommendationSourceAdjustments,
@@ -11,7 +12,7 @@ import {
   saveRecommendationHistory,
 } from "@/lib/data";
 import { candidatesFromRatings, scoreRecommendations } from "@/lib/recommendations/engine";
-import { getCandidatePool, isDemoMode } from "@/lib/tmdb";
+import { getCandidatePool, getRelatedCandidatePool, isDemoMode } from "@/lib/tmdb";
 import { cacheMediaSummaries, cacheSearch, getCachedSearch } from "@/lib/media-cache";
 import { assertSameOrigin, enforceRateLimit } from "@/lib/request-security";
 
@@ -19,8 +20,9 @@ export async function GET(request: NextRequest) {
   try {
     enforceRateLimit(request, "recommendations", 20, 60_000);
     const fresh = request.nextUrl.searchParams.get("refresh") === "1";
-    const [ratings, cachedPopular, cachedDiscovery] = await Promise.all([
+    const [ratings, language, cachedPopular, cachedDiscovery] = await Promise.all([
       getRatings(),
+      getProfileLanguage(),
       fresh ? null : getCachedSearch("__recommendations_popular_v2__", 1),
       fresh ? null : getCachedSearch("__recommendations_discovery_v2__", 1),
     ]);
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
             ...cachedPopular.results.map((media) => ({ media, source: "popular" as const })),
             ...cachedDiscovery.results.map((media) => ({ media, source: "discovery" as const })),
           ]
-        : await getCandidatePool(fresh);
+        : await getCandidatePool(fresh, language);
     if (!cachedPopular || !cachedDiscovery || fresh) {
       await Promise.all([
         cacheSearch(
@@ -48,10 +50,17 @@ export async function GET(request: NextRequest) {
       ]);
     }
     await cacheMediaSummaries(genericCandidates.map(({ media }) => media));
-    const candidates = [
-      ...candidatesFromRatings(ratings),
-      ...genericCandidates.map(({ media, source }) => ({ media, source })),
-    ];
+    const relatedCandidates = isDemoMode
+      ? candidatesFromRatings(ratings)
+      : await getRelatedCandidatePool(
+          ratings.map((rating) => ({
+            type: rating.media.type,
+            tmdbId: rating.media.tmdbId,
+            value: rating.value,
+          })),
+          language,
+        );
+    const candidates = [...relatedCandidates, ...genericCandidates.map(({ media, source }) => ({ media, source }))];
     const candidateMedia = candidates.map(({ media }) => media);
     const [people, signals, bookmarks, sourceAdjustments] = await Promise.all([
       getCachedCandidatePeople(candidateMedia),
@@ -67,6 +76,7 @@ export async function GET(request: NextRequest) {
         signal: signals.get(`${candidate.media.type}:${candidate.media.tmdbId}`),
         sourceAdjustment: sourceAdjustments[candidate.source] ?? 0,
       })),
+      language,
     );
     await saveRecommendationHistory(result.recommendations);
     const recommendations = result.recommendations.map((recommendation) => ({

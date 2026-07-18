@@ -6,13 +6,9 @@ import { ArrowLeft, Compass, RefreshCw } from "lucide-react";
 import { DemoBanner } from "@/components/demo-banner";
 import { MediaCard } from "@/components/media-card";
 import { MediaTypeGroups } from "@/components/media-type-groups";
-import {
-  categoryTitleForMediaType,
-  expandedRecommendationsForCategory,
-  RECOMMENDATION_CATEGORIES,
-  type RecommendationCategorySlug,
-} from "@/lib/recommendation-categories";
+import { expandedRecommendationsForCategory, type RecommendationCategorySlug } from "@/lib/recommendation-categories";
 import type { MediaType, ScoredRecommendation, TasteProfile } from "@/lib/types";
+import { useI18n } from "@/components/app-provider";
 
 interface Payload {
   recommendations: ScoredRecommendation[];
@@ -21,27 +17,31 @@ interface Payload {
 }
 
 export function CategoryClient({ slug, mediaType }: { slug: RecommendationCategorySlug; mediaType?: MediaType }) {
+  const { t, config } = useI18n();
   const [data, setData] = useState<Payload | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const category = RECOMMENDATION_CATEGORIES[slug];
+  const categoryTitle = `${t(`category.${slug}.title`)}${mediaType && slug !== "movies" && slug !== "series" ? ` – ${t(mediaType === "movie" ? "common.movies" : "common.seriesPlural")}` : ""}`;
 
-  const load = useCallback(async (fresh = false) => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch(`/api/recommendations${fresh ? "?refresh=1" : ""}`, { cache: "no-store" });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error);
-      setData(json);
-      setHidden(new Set());
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Kategorie konnte nicht geladen werden.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (fresh = false) => {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch(`/api/recommendations${fresh ? "?refresh=1" : ""}`, { cache: "no-store" });
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.error);
+        setData(json);
+        setHidden(new Set());
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : t("category.loadError"));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -63,47 +63,47 @@ export function CategoryClient({ slug, mediaType }: { slug: RecommendationCatego
     <div className="page-shell category-page">
       <Link className="back-link" href="/">
         <ArrowLeft size={17} />
-        Zurück zu den Empfehlungen
+        {t("category.back")}
       </Link>
       <div className="page-header">
         <div>
           <p className="eyebrow">
             {mediaType === "movie"
-              ? "Alle Filme dieser Kategorie"
+              ? t("category.allMovies")
               : mediaType === "tv"
-                ? "Alle Serien dieser Kategorie"
-                : "Alle Empfehlungen dieser Kategorie"}
+                ? t("category.allSeries")
+                : t("category.all")}
           </p>
-          <h1>{categoryTitleForMediaType(slug, mediaType)}</h1>
-          <p className="lead">{category.subtitle}</p>
+          <h1>{categoryTitle}</h1>
+          <p className="lead">{t(`category.${slug}.subtitle`)}</p>
         </div>
         <button className="button" onClick={() => load(true)} disabled={loading}>
           <RefreshCw size={16} />
-          Neu berechnen
+          {t("dashboard.refresh")}
         </button>
       </div>
       {data?.demoMode && <DemoBanner />}
       {loading ? (
         <div className="status-panel" aria-live="polite" aria-busy="true">
           <div className="spinner" />
-          <p>Kategorie wird geladen …</p>
+          <p>{t("category.loading")}</p>
         </div>
       ) : error ? (
         <div className="status-panel" role="alert">
           <Compass size={34} />
-          <h2>Kategorie nicht verfügbar</h2>
+          <h2>{t("category.unavailable")}</h2>
           <p>{error}</p>
           <button className="button primary" onClick={() => load()}>
-            Noch einmal versuchen
+            {t("common.retry")}
           </button>
         </div>
       ) : items.length === 0 ? (
         <div className="status-panel">
           <Compass size={34} />
-          <h2>Keine weiteren Titel</h2>
-          <p>Für diese Kategorie sind aktuell keine Empfehlungen verfügbar.</p>
+          <h2>{t("category.empty")}</h2>
+          <p>{t("category.emptyBody")}</p>
           <Link className="button primary" href="/">
-            Zur Startseite
+            {t("common.home")}
           </Link>
         </div>
       ) : (
@@ -115,7 +115,7 @@ export function CategoryClient({ slug, mediaType }: { slug: RecommendationCatego
             <MediaCard
               key={`${item.media.type}:${item.media.tmdbId}`}
               media={item.media}
-              reason={item.reasons[0]}
+              reason={config.recommendations.show_reasons ? item.reasons[0] : undefined}
               onRated={() => hide(item)}
               trackRecommendation
             />

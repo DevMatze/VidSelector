@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError } from "@/lib/api-response";
-import { getProfile, getRatings, resetProfile, updateProfileName } from "@/lib/data";
+import { getProfile, getRatings, resetProfile, updateProfile } from "@/lib/data";
 import { buildTasteProfile } from "@/lib/recommendations/engine";
 import { assertSameOrigin } from "@/lib/request-security";
 import { maintainMediaCache } from "@/lib/media-cache";
 import { createProfileBackup, maintainAutomaticProfileBackups } from "@/lib/profile-backups";
+import { supportedLanguages } from "@/lib/config.mjs";
 
-const profileSchema = z.object({ name: z.string().trim().min(1).max(80) });
+const profileSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  language: z.enum(supportedLanguages),
+});
 
 export async function GET(request: Request) {
   try {
@@ -25,8 +29,8 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     assertSameOrigin(request);
-    const { name } = profileSchema.parse(await request.json());
-    const profile = await updateProfileName(name);
+    const { name, language } = profileSchema.parse(await request.json());
+    const profile = await updateProfile(name, language);
     return NextResponse.json({ profile });
   } catch (error) {
     return apiError(error, "Das Profil konnte nicht aktualisiert werden.");

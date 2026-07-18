@@ -19,12 +19,13 @@ import {
   Users,
 } from "lucide-react";
 import type { MediaDetails, RatingValue } from "@/lib/types";
-import { imageUrl } from "@/lib/tmdb";
+import { imageUrl } from "@/lib/tmdb-image";
 import { RatingControls } from "@/components/rating-controls";
 import { MediaCard } from "@/components/media-card";
 import { MediaPoster } from "@/components/media-poster";
 import { MediaCarousel } from "@/components/media-carousel";
 import { BookmarkControl } from "@/components/bookmark-control";
+import { useI18n } from "@/components/app-provider";
 
 interface DetailsPayload {
   media: MediaDetails;
@@ -34,6 +35,7 @@ interface DetailsPayload {
 }
 
 export function DetailClient({ type, id }: { type: string; id: string }) {
+  const { t } = useI18n();
   const [data, setData] = useState<DetailsPayload | null>(null);
   const [loadedKey, setLoadedKey] = useState("");
   const [error, setError] = useState<{ key: string; message: string } | null>(null);
@@ -51,10 +53,10 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
       })
       .catch((reason) => {
         if (reason.name !== "AbortError")
-          setError({ key: requestKey, message: reason instanceof Error ? reason.message : "Details nicht verfügbar." });
+          setError({ key: requestKey, message: reason instanceof Error ? reason.message : t("detail.loadError") });
       });
     return () => controller.abort();
-  }, [type, id]);
+  }, [type, id, t]);
 
   const currentKey = `${type}:${id}`;
   if (error?.key === currentKey)
@@ -62,10 +64,10 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
       <div className="page-shell">
         <div className="status-panel">
           <Film size={38} />
-          <h2>Details nicht verfügbar</h2>
+          <h2>{t("detail.unavailable")}</h2>
           <p>{error.message}</p>
           <Link className="button primary" href="/search">
-            Zur Suche
+            {t("common.search")}
           </Link>
         </div>
       </div>
@@ -75,17 +77,17 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
       <div className="page-shell">
         <div className="status-panel" aria-live="polite" aria-busy="true">
           <div className="spinner" />
-          <p>Titel wird geladen …</p>
+          <p>{t("detail.loading")}</p>
         </div>
       </div>
     );
   const { media } = data;
   const year = media.releaseDate?.slice(0, 4);
-  const kind = media.type === "movie" ? "Film" : "Serie";
+  const kind = t(media.type === "movie" ? "common.movie" : "common.series");
   const providerGroups = [
-    { kind: "flatrate", label: "Streamen" },
-    { kind: "rent", label: "Mieten" },
-    { kind: "buy", label: "Kaufen" },
+    { kind: "flatrate", label: t("detail.stream") },
+    { kind: "rent", label: t("detail.rent") },
+    { kind: "buy", label: t("detail.buy") },
   ] as const;
 
   return (
@@ -103,7 +105,7 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
       <div className="page-shell detail-shell">
         <button className="back-link back-button" type="button" onClick={() => router.back()}>
           <ArrowLeft size={17} />
-          Zurück
+          {t("common.back")}
         </button>
         <section className="detail-hero">
           <div className="detail-poster">
@@ -118,7 +120,7 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
             <div className="detail-meta">
               <span>
                 <Calendar size={15} />
-                {year || "Datum unbekannt"}
+                {year || t("detail.unknownDate")}
               </span>
               <span>
                 <Star size={15} fill="currentColor" />
@@ -127,13 +129,14 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
               {media.runtime && (
                 <span>
                   <Clock3 size={15} />
-                  {media.runtime} Min.
+                  {t("detail.minutes", { count: media.runtime })}
                 </span>
               )}
               {media.type === "tv" && media.seasons && (
                 <span>
                   <Tv size={15} />
-                  {media.seasons} Staffeln{media.episodes ? ` · ${media.episodes} Folgen` : ""}
+                  {t("detail.seasons", { count: media.seasons })}
+                  {media.episodes ? ` · ${t("detail.episodes", { count: media.episodes })}` : ""}
                 </span>
               )}
             </div>
@@ -155,7 +158,7 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
                 href={`https://www.youtube.com/watch?v=${media.trailerKey}`}
               >
                 <Play size={16} fill="currentColor" />
-                Trailer ansehen <ExternalLink size={14} />
+                {t("detail.trailer")} <ExternalLink size={14} />
               </a>
             )}
           </div>
@@ -164,7 +167,7 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
         <div className="detail-columns">
           <div>
             <section className="detail-section">
-              <h2>Besetzung</h2>
+              <h2>{t("detail.cast")}</h2>
               {media.cast.length ? (
                 <div className="person-list">
                   {media.cast.map((person) => (
@@ -184,17 +187,17 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
                       </div>
                       <div>
                         <strong>{person.name}</strong>
-                        <span>{person.role || "Besetzung"}</span>
+                        <span>{person.role || t("detail.cast")}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="muted">Keine Besetzungsdaten verfügbar.</p>
+                <p className="muted">{t("detail.noCast")}</p>
               )}
             </section>
             <section className="detail-section">
-              <h2>{media.type === "movie" ? "Kreativteam" : "Erstellt von"}</h2>
+              <h2>{t(media.type === "movie" ? "detail.creative" : "detail.createdBy")}</h2>
               {media.creators.length ? (
                 <div className="person-list creators">
                   {media.creators.map((person) => (
@@ -214,44 +217,44 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
                       </div>
                       <div>
                         <strong>{person.name}</strong>
-                        <span>{person.role || "Kreativteam"}</span>
+                        <span>{person.role || t("detail.creative")}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="muted">Keine Kreativdaten verfügbar.</p>
+                <p className="muted">{t("detail.noCreative")}</p>
               )}
             </section>
           </div>
           <aside className="facts-card">
-            <h2>Auf einen Blick</h2>
+            <h2>{t("detail.facts")}</h2>
             <dl>
               <div>
                 <dt>
                   <Globe2 size={15} />
-                  Originalsprache
+                  {t("detail.originalLanguage")}
                 </dt>
                 <dd>{media.originalLanguage?.toUpperCase() || "—"}</dd>
               </div>
               <div>
                 <dt>
                   <Film size={15} />
-                  Produktionsland
+                  {t("detail.country")}
                 </dt>
                 <dd>{media.countries.join(", ") || "—"}</dd>
               </div>
               <div>
                 <dt>
                   <Star size={15} />
-                  Beliebtheit
+                  {t("detail.popularity")}
                 </dt>
                 <dd>{Math.round(media.popularity)}</dd>
               </div>
             </dl>
             {media.providers.length > 0 && (
               <div className="provider-section">
-                <h3>Verfügbarkeit in Deutschland</h3>
+                <h3>{t("detail.availability")}</h3>
                 {providerGroups.map(({ kind: providerKind, label }) => {
                   const providers = media.providers.filter((provider) => provider.kind === providerKind);
                   return providers.length ? (
@@ -265,10 +268,10 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
                     </div>
                   ) : null;
                 })}
-                <p className="provider-attribution">Streamingdaten von JustWatch.</p>
+                <p className="provider-attribution">{t("detail.providerAttribution")}</p>
                 {media.watchProviderUrl && (
                   <a className="text-link" href={media.watchProviderUrl} target="_blank" rel="noreferrer">
-                    Angebote bei TMDB ansehen <ExternalLink size={12} />
+                    {t("detail.providerLink")} <ExternalLink size={12} />
                   </a>
                 )}
               </div>
@@ -280,19 +283,19 @@ export function DetailClient({ type, id }: { type: string; id: string }) {
           <section className="section">
             <div className="section-heading similar-heading">
               <div>
-                <h2>{media.type === "movie" ? "Ähnliche Filme" : "Ähnliche Serien"}</h2>
-                <p>Mehr aus derselben {media.type === "movie" ? "filmischen" : "erzählerischen"} Richtung</p>
+                <h2>{t(media.type === "movie" ? "detail.similarMovies" : "detail.similarSeries")}</h2>
+                <p>{t(media.type === "movie" ? "detail.similarMovieBody" : "detail.similarSeriesBody")}</p>
               </div>
               <div className="media-type-navigation">
                 <Link className="see-more-link" href={`/media/${media.type}/${media.tmdbId}/similar`}>
-                  Siehe mehr <ArrowRight size={15} />
+                  {t("common.seeMore")} <ArrowRight size={15} />
                 </Link>
                 <span>{media.similar.length}</span>
               </div>
             </div>
             <MediaCarousel
               items={media.similar}
-              label={media.type === "movie" ? "Ähnliche Filme" : "Ähnliche Serien"}
+              label={t(media.type === "movie" ? "detail.similarMovies" : "detail.similarSeries")}
               renderItem={(similar) => <MediaCard key={`${similar.type}:${similar.tmdbId}`} media={similar} />}
             />
           </section>

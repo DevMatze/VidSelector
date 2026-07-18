@@ -1,8 +1,10 @@
 import type { StoredRating } from "@/lib/data";
 import type { MediaSummary, ScoredRecommendation, TasteProfile } from "@/lib/types";
 import { MIN_RATINGS_FOR_PROFILE, RECOMMENDATION_WEIGHTS as W } from "@/lib/recommendations/config";
-import { mediaGenreFacets } from "@/lib/genres";
+import { localizeGenreName, mediaGenreFacets } from "@/lib/genres";
 import type { RecommendationSignal } from "@/lib/data";
+import type { UiLanguage } from "@/lib/config.mjs";
+import { translate } from "@/lib/i18n";
 
 export interface Candidate {
   media: MediaSummary;
@@ -65,7 +67,10 @@ export function buildTasteProfile(ratings: StoredRating[]): TasteProfile {
 export function scoreRecommendations(
   ratings: StoredRating[],
   candidates: Candidate[],
+  uiLanguage: UiLanguage = "de",
 ): { profile: TasteProfile; recommendations: ScoredRecommendation[] } {
+  const t = (key: string, values?: Record<string, string | number>) => translate(uiLanguage, key, values);
+  const joinItems = (items: string[]) => items.join(t("reason.and"));
   const profile = buildTasteProfile(ratings);
   const rated = new Set(ratings.map((rating) => `${rating.media.type}:${rating.media.tmdbId}`));
   const unique = new Map<string, Candidate>();
@@ -125,25 +130,22 @@ export function scoreRecommendations(
       const dislikedAnchors = candidate.similarTo?.filter((anchor) => anchor.value === "dislike") ?? [];
       score += likedAnchors.length * W.similarToLike + dislikedAnchors.length * W.similarToDislike;
       if (likedAnchors.length)
-        reasons.push(
-          `Ähnlich wie ${likedAnchors
-            .slice(0, 2)
-            .map((item) => item.title)
-            .join(" und ")}, die dir gefallen haben.`,
-        );
+        reasons.push(t("reason.similar", { items: joinItems(likedAnchors.slice(0, 2).map((item) => item.title)) }));
       if (likedGenres.length)
-        reasons.push(`Passt zu deinen bevorzugten Genres ${likedGenres.slice(0, 2).join(" und ")}.`);
-      if (likedPeople.length)
-        reasons.push(`Mit ${likedPeople.slice(0, 2).join(" und ")} aus Titeln, die dir gefallen haben.`);
+        reasons.push(
+          t("reason.genres", {
+            items: joinItems(likedGenres.slice(0, 2).map((genre) => localizeGenreName(genre, uiLanguage))),
+          }),
+        );
+      if (likedPeople.length) reasons.push(t("reason.people", { items: joinItems(likedPeople.slice(0, 2)) }));
       if (avoidedGenres.length && score > 0)
-        reasons.push(`Trotz einzelner Überschneidungen mit ${avoidedGenres[0]} überwiegen passende Merkmale.`);
-      if (media.voteAverage >= 7.5)
-        reasons.push(`Von der Community stark bewertet (${media.voteAverage.toFixed(1)}/10).`);
+        reasons.push(t("reason.overlap", { genre: localizeGenreName(avoidedGenres[0], uiLanguage) }));
+      if (media.voteAverage >= 7.5) reasons.push(t("reason.community", { rating: media.voteAverage.toFixed(1) }));
       if (profile.ratingCount < MIN_RATINGS_FOR_PROFILE) {
-        if (!reasons.length) reasons.push("Beliebter, gut bewerteter Titel für dein erstes Geschmacksprofil.");
+        if (!reasons.length) reasons.push(t("reason.first"));
       }
       if (media.voteAverage > 0 && media.voteAverage < 5) score += W.lowPublicRating;
-      if (!reasons.length) reasons.push("Ergänzt dein bisheriges Profil um eine neue Richtung.");
+      if (!reasons.length) reasons.push(t("reason.newDirection"));
 
       const source =
         candidate.source !== "similar" && (likedGenres.length || likedPeople.length) ? "profile" : candidate.source;

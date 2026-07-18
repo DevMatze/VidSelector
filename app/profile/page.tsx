@@ -1,6 +1,7 @@
 import { ProfileClient } from "@/components/profile-client";
+import { localizedTitle } from "@/lib/localized-metadata";
 
-export const metadata = { title: "Mein Profil" };
+export const generateMetadata = () => localizedTitle("nav.profile");
 export default function ProfilePage() {
   return <ProfileClient />;
 }

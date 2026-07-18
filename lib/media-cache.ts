@@ -1,9 +1,11 @@
 import type { MediaItem } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mediaItemToSummary } from "@/lib/data";
-import { genreIdsMatchingQuery, normalizeGenres, normalizeMediaGenres } from "@/lib/genres";
+import { genreIdsMatchingQuery } from "@/lib/genres";
 import type { MediaDetails, MediaSummary, MediaType } from "@/lib/types";
 import { mediaDetailsSchema } from "@/lib/validation";
+import { mediaFeatureFingerprint } from "@/lib/media-features";
+import { getActiveUserId } from "@/lib/users";
 
 const DAY = 24 * 60 * 60 * 1_000;
 export const CACHE_TTL = {
@@ -29,7 +31,7 @@ function summaryData(media: MediaSummary) {
     posterPath: media.posterPath,
     backdropPath: media.backdropPath,
     releaseDate: media.releaseDate,
-    genres: JSON.stringify(normalizeGenres(media.genres)),
+    genres: JSON.stringify(media.genres),
     voteAverage: media.voteAverage,
     voteCount: media.voteCount ?? 0,
     popularity: media.popularity,
@@ -42,11 +44,11 @@ function summaryData(media: MediaSummary) {
 function parseDetails(mediaItem: MediaItem): MediaDetails | null {
   try {
     const parsed = mediaDetailsSchema.safeParse(JSON.parse(mediaItem.metadata));
-    if (!parsed.success) return null;
+    if (!parsed.success || parsed.data.featureFingerprint !== mediaFeatureFingerprint) return null;
     return {
       ...parsed.data,
       ...mediaItemToSummary(mediaItem),
-      similar: parsed.data.similar.map(normalizeMediaGenres),
+      similar: parsed.data.similar,
     };
   } catch {
     return null;
@@ -108,10 +110,12 @@ export async function maintainMediaCache(): Promise<void> {
 }
 
 export async function findCachedMedia(query: string): Promise<MediaSummary[]> {
+  const scopeId = await getActiveUserId();
   const matchingGenreIds = genreIdsMatchingQuery(query);
   const animeQuery = normalizedQuery(query).includes("anime");
   const mediaItems = await prisma.mediaItem.findMany({
     where: {
+      scopeId,
       expiresAt: { gt: new Date() },
       ...(animeQuery ? { originalLanguage: "ja" } : {}),
       OR: [
@@ -132,8 +136,9 @@ export async function getCachedSearch(
   query: string,
   page: number,
 ): Promise<{ results: MediaSummary[]; totalPages: number } | null> {
+  const scopeId = await getActiveUserId();
   const cached = await prisma.searchCache.findUnique({
-    where: { query_page: { query: normalizedQuery(query), page } },
+    where: { query_page_scopeId: { query: normalizedQuery(query), page, scopeId } },
   });
   if (!cached || cached.expiresAt <= new Date()) return null;
   let keys: string[];
@@ -150,7 +155,7 @@ export async function getCachedSearch(
     return (type === "movie" || type === "tv") && Number.isInteger(tmdbId) ? [{ type, tmdbId }] : [];
   });
   if (clauses.length === 0) return { results: [], totalPages: cached.totalPages };
-  const items = await prisma.mediaItem.findMany({ where: { OR: clauses, expiresAt: { gt: new Date() } } });
+  const items = await prisma.mediaItem.findMany({ where: { scopeId, OR: clauses, expiresAt: { gt: new Date() } } });
   const byKey = new Map(items.map((item) => [`${item.type}:${item.tmdbId}`, mediaItemToSummary(item)]));
   const results = keys.flatMap((key) => byKey.get(key) ?? []);
   return results.length === keys.length ? { results, totalPages: cached.totalPages } : null;
@@ -162,13 +167,15 @@ export async function cacheSearch(
   results: MediaSummary[],
   totalPages: number,
 ): Promise<void> {
+  const scopeId = await getActiveUserId();
   await cacheMediaSummaries(results);
   await prisma.searchCache.upsert({
-    where: { query_page: { query: normalizedQuery(query), page } },
+    where: { query_page_scopeId: { query: normalizedQuery(query), page, scopeId } },
     update: { resultKeys: JSON.stringify(results.map(mediaKey)), totalPages, expiresAt: expiresIn(CACHE_TTL.search) },
     create: {
       query: normalizedQuery(query),
       page,
+      scopeId,
       resultKeys: JSON.stringify(results.map(mediaKey)),
       totalPages,
       expiresAt: expiresIn(CACHE_TTL.search),
@@ -177,27 +184,32 @@ export async function cacheSearch(
 }
 
 export async function getCachedMediaDetails(type: MediaType, tmdbId: number): Promise<MediaDetails | null> {
-  const mediaItem = await prisma.mediaItem.findUnique({ where: { tmdbId_type: { tmdbId, type } } });
+  const scopeId = await getActiveUserId();
+  const mediaItem = await prisma.mediaItem.findUnique({
+    where: { tmdbId_type_scopeId: { tmdbId, type, scopeId } },
+  });
   if (!mediaItem?.detailsExpiresAt || mediaItem.detailsExpiresAt <= new Date()) return null;
   return parseDetails(mediaItem);
 }
 
 export async function cacheMediaSummaries(mediaItems: MediaSummary[]): Promise<void> {
   if (mediaItems.length === 0) return;
+  const scopeId = await getActiveUserId();
   await prisma.$transaction(
     mediaItems.map((media) =>
       prisma.mediaItem.upsert({
-        where: { tmdbId_type: { tmdbId: media.tmdbId, type: media.type } },
+        where: { tmdbId_type_scopeId: { tmdbId: media.tmdbId, type: media.type, scopeId } },
         update: summaryData(media),
-        create: { tmdbId: media.tmdbId, type: media.type, ...summaryData(media) },
+        create: { tmdbId: media.tmdbId, type: media.type, scopeId, ...summaryData(media) },
       }),
     ),
   );
 }
 
 export async function cacheMediaDetails(media: MediaDetails): Promise<void> {
+  const scopeId = await getActiveUserId();
   await prisma.mediaItem.upsert({
-    where: { tmdbId_type: { tmdbId: media.tmdbId, type: media.type } },
+    where: { tmdbId_type_scopeId: { tmdbId: media.tmdbId, type: media.type, scopeId } },
     update: {
       ...summaryData(media),
       metadata: JSON.stringify(media),
@@ -207,6 +219,7 @@ export async function cacheMediaDetails(media: MediaDetails): Promise<void> {
     create: {
       tmdbId: media.tmdbId,
       type: media.type,
+      scopeId,
       ...summaryData(media),
       metadata: JSON.stringify(media),
       detailsCachedAt: new Date(),

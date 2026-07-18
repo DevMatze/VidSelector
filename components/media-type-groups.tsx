@@ -5,6 +5,7 @@ import { ArrowRight, Film, Tv } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { MediaType } from "@/lib/types";
 import { MediaCarousel } from "@/components/media-carousel";
+import { useI18n } from "@/components/app-provider";
 
 interface TypedItem {
   type: MediaType;
@@ -24,11 +25,6 @@ interface Props<T> {
   loadMoreStep?: number;
 }
 
-const GROUPS = [
-  { type: "movie", label: "Filme", Icon: Film },
-  { type: "tv", label: "Serien", Icon: Tv },
-] as const;
-
 export function MediaTypeGroups<T>({
   items,
   getMedia,
@@ -39,12 +35,18 @@ export function MediaTypeGroups<T>({
   pageSize = 5,
   seeMoreHrefs,
   progressive = false,
-  initialVisiblePerType = 20,
-  loadMoreStep = 20,
+  initialVisiblePerType,
+  loadMoreStep,
 }: Props<T>) {
+  const { t, config } = useI18n();
+  const batchSize = config.recommendations.load_batch_size;
+  const groups = [
+    { type: "movie", label: t("common.movies"), Icon: Film },
+    { type: "tv", label: t("common.seriesPlural"), Icon: Tv },
+  ] as const;
   return (
     <div className="media-type-groups">
-      {GROUPS.map(({ type, label, Icon }) => {
+      {groups.map(({ type, label, Icon }) => {
         const entries = items.filter((item) => getMedia(item).type === type).slice(0, limitPerType);
         if (entries.length === 0) return null;
 
@@ -61,8 +63,8 @@ export function MediaTypeGroups<T>({
             pageSize={pageSize}
             seeMoreHref={seeMoreHrefs?.[type]}
             progressive={progressive}
-            initialVisible={initialVisiblePerType}
-            loadMoreStep={loadMoreStep}
+            initialVisible={initialVisiblePerType ?? batchSize}
+            loadMoreStep={loadMoreStep ?? batchSize}
           />
         );
       })}
@@ -97,6 +99,7 @@ function MediaTypeGroup<T>({
   initialVisible: number;
   loadMoreStep: number;
 }) {
+  const { t, locale } = useI18n();
   const [visibleCount, setVisibleCount] = useState(initialVisible);
   const effectiveVisibleCount = Math.min(entries.length, Math.max(initialVisible, visibleCount));
   const visibleEntries = progressive ? entries.slice(0, effectiveVisibleCount) : entries;
@@ -110,7 +113,7 @@ function MediaTypeGroup<T>({
         <div className="media-type-navigation">
           {seeMoreHref && (
             <Link className="see-more-link" href={seeMoreHref}>
-              Siehe mehr <ArrowRight size={15} />
+              {t("common.seeMore")} <ArrowRight size={15} />
             </Link>
           )}
           <span>{entries.length}</span>
@@ -124,12 +127,12 @@ function MediaTypeGroup<T>({
           {progressive && effectiveVisibleCount < entries.length && (
             <div className="load-more-row">
               <button className="button" type="button" onClick={() => setVisibleCount((count) => count + loadMoreStep)}>
-                Weitere {Math.min(loadMoreStep, entries.length - effectiveVisibleCount)} {label.toLocaleLowerCase("de")}{" "}
-                laden
+                {t("common.loadMore", {
+                  count: Math.min(loadMoreStep, entries.length - effectiveVisibleCount),
+                  type: label.toLocaleLowerCase(locale),
+                })}
               </button>
-              <span>
-                {visibleEntries.length} von {entries.length}
-              </span>
+              <span>{t("common.countOf", { visible: visibleEntries.length, total: entries.length })}</span>
             </div>
           )}
         </>

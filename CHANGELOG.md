@@ -6,6 +6,42 @@ Alle wesentlichen Änderungen an VidSelector werden in diesem Dokument festgehal
 
 ## [Unreleased]
 
+## [1.0.0] – 2026-07-18
+
+### Hinzugefügt
+
+- Vollständig übersetzte Oberfläche auf Deutsch, Englisch, Spanisch und Französisch mit dauerhaft gespeicherter
+  Profilsprache und leicht erweiterbaren Wörterbüchern.
+- Validierte YAML-Konfiguration für Server, Standardsprache, Katalog, Empfehlungen, Backups, Logging,
+  Funktionsschalter und Benutzerbetrieb; Zugangsdaten bleiben getrennt in `.env`.
+- Optionale lokale Benutzerverwaltung mit Profilumschalter, Anlegen, Bearbeiten und Löschen von Haushaltsprofilen.
+- Konfigurationsoption `users.mode`; der kompatible Einzelbenutzermodus `simple` bleibt Standard, `multiple` aktiviert
+  die Verwaltung ohne Anmeldung.
+- Konfigurierbare Empfehlungserklärungen, Startseitenlimits und Nachladegrößen sowie schaltbare Trailer,
+  Streaminganbieter, ähnliche Titel und Profilübertragung.
+- Automatische tägliche und wöchentliche Profilsicherungen, Datenbanksicherungen vor Migrationen und konfigurierbares
+  strukturiertes Logging.
+
+### Geändert
+
+- Bewertungen, Merkliste, Empfehlungen, Mediencache, Suchcache, Sprache, Import/Export und Profilsicherungen werden im
+  Mehrbenutzermodus vollständig nach Benutzer getrennt.
+- Film- und Serientitel, Beschreibungen, Genres und ähnliche Empfehlungen werden passend zur Profilsprache von TMDB
+  geladen; sprachabhängige Cache-Daten werden sicher getrennt beziehungsweise erneuert.
+- Ähnliche Empfehlungen werden bei einem Sprachwechsel neu von TMDB lokalisiert, statt veraltete Titel und
+  Beschreibungen aus früher gespeicherten Bewertungsdetails zu übernehmen.
+- Die Serveradresse und der Port werden zentral aus `config.yml` übernommen; die Standardvorgabe bleibt im lokalen
+  Netzwerk unter `0.0.0.0:3000` erreichbar.
+
+### Sicherheit und Qualität
+
+- Konfigurationswerte werden beim Start strikt validiert; unbekannte oder wirkungslose Optionen brechen mit einer
+  verständlichen Meldung ab.
+- Profiländerungen, Importe, Merkliste und Benutzerverwaltung verwenden Herkunftsprüfung, Eingabevalidierung und
+  passende Ratenbegrenzungen.
+- Unit-, API-, Komponenten- und Browserprüfungen decken Konfiguration, Mehrsprachigkeit, Backups, TMDB-Lokalisierung,
+  Benutzertrennung sowie Desktop- und Mobilansicht ab.
+
 ## [0.3.0] – 2026-07-18
 
 ### Geändert
@@ -101,7 +137,8 @@ Alle wesentlichen Änderungen an VidSelector werden in diesem Dokument festgehal
 - Responsive Netflix-inspirierte Karussells und eigene „Siehe mehr“-Seiten.
 - GitHub Actions, Dependabot, Security-Dokumentation, systemd-Benutzerservice und Demo-Modus.
 
-[Unreleased]: https://github.com/DevMatze/VidSelector/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/DevMatze/VidSelector/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/DevMatze/VidSelector/compare/v0.3.0...v1.0.0
 [0.3.0]: https://github.com/DevMatze/VidSelector/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/DevMatze/VidSelector/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DevMatze/VidSelector/compare/v0.1.0...v0.2.0

@@ -6,6 +6,7 @@ import { Bookmark, Search, SlidersHorizontal } from "lucide-react";
 import { MediaCard } from "@/components/media-card";
 import { MediaTypeGroups } from "@/components/media-type-groups";
 import type { WatchEntryRecord } from "@/lib/types";
+import { useI18n } from "@/components/app-provider";
 
 interface Payload {
   entries: WatchEntryRecord[];
@@ -13,6 +14,7 @@ interface Payload {
 }
 
 export function WatchlistClient() {
+  const { t } = useI18n();
   const [data, setData] = useState<Payload>({ entries: [], totalEntries: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,11 +30,11 @@ export function WatchlistClient() {
       if (!response.ok) throw new Error(json.error);
       setData(json);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Merkliste konnte nicht geladen werden.");
+      setError(reason instanceof Error ? reason.message : t("watchlist.loadError"));
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 180);
@@ -47,72 +49,72 @@ export function WatchlistClient() {
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Deine persönliche Auswahl</p>
-          <h1>Meine Merkliste</h1>
-          <p className="lead">Alle Filme und Serien, die du dir für später merken möchtest.</p>
+          <p className="eyebrow">{t("watchlist.eyebrow")}</p>
+          <h1>{t("watchlist.title")}</h1>
+          <p className="lead">{t("watchlist.lead")}</p>
         </div>
         <div className="stat-pill">
           <strong>{data.entries.length}</strong>
-          <span>angezeigt</span>
+          <span>{t("common.shown")}</span>
         </div>
       </div>
       <div className="filter-bar watchlist-filters">
         <label className="filter-search">
-          <span className="sr-only">In der Merkliste suchen</span>
+          <span className="sr-only">{t("watchlist.search")}</span>
           <Search size={17} />
           <input
             value={filters.query}
             onChange={(event) => update("query", event.target.value)}
-            placeholder="In der Merkliste suchen"
+            placeholder={t("watchlist.search")}
           />
         </label>
         <label>
-          <span className="sr-only">Typ</span>
+          <span className="sr-only">{t("filter.type")}</span>
           <select value={filters.type} onChange={(event) => update("type", event.target.value)}>
-            <option value="">Film & Serie</option>
-            <option value="movie">Nur Filme</option>
-            <option value="tv">Nur Serien</option>
+            <option value="">{t("filter.allTypes")}</option>
+            <option value="movie">{t("filter.moviesOnly")}</option>
+            <option value="tv">{t("filter.seriesOnly")}</option>
           </select>
         </label>
         <label>
-          <span className="sr-only">Sortierung</span>
+          <span className="sr-only">{t("filter.sort")}</span>
           <select value={filters.sort} onChange={(event) => update("sort", event.target.value)}>
-            <option value="newest">Neueste zuerst</option>
-            <option value="oldest">Älteste zuerst</option>
-            <option value="title">Nach Titel</option>
+            <option value="newest">{t("filter.newest")}</option>
+            <option value="oldest">{t("filter.oldest")}</option>
+            <option value="title">{t("filter.title")}</option>
           </select>
         </label>
       </div>
       {loading ? (
         <div className="status-panel" aria-live="polite" aria-busy="true">
           <div className="spinner" />
-          <p>Merkliste wird geladen …</p>
+          <p>{t("watchlist.loading")}</p>
         </div>
       ) : error ? (
         <div className="status-panel" role="alert">
-          <h2>Merkliste nicht verfügbar</h2>
+          <h2>{t("watchlist.unavailable")}</h2>
           <p>{error}</p>
           <button className="button" onClick={load}>
-            Erneut laden
+            {t("common.reload")}
           </button>
         </div>
       ) : data.entries.length === 0 ? (
         data.totalEntries > 0 ? (
           <div className="status-panel">
             <SlidersHorizontal size={38} />
-            <h2>Keine passenden Einträge</h2>
-            <p>Mit den gewählten Filtern wurde kein Titel gefunden.</p>
+            <h2>{t("watchlist.filteredEmpty")}</h2>
+            <p>{t("filter.noMatches")}</p>
             <button className="button" onClick={() => setFilters({ query: "", type: "", sort: "newest" })}>
-              Filter zurücksetzen
+              {t("filter.reset")}
             </button>
           </div>
         ) : (
           <div className="status-panel">
             <Bookmark size={38} />
-            <h2>Deine Merkliste ist noch leer</h2>
-            <p>Merke dir interessante Titel, ohne sie bereits bewerten zu müssen.</p>
+            <h2>{t("watchlist.empty")}</h2>
+            <p>{t("watchlist.emptyBody")}</p>
             <Link className="button primary" href="/search">
-              Titel entdecken
+              {t("watchlist.discover")}
             </Link>
           </div>
         )

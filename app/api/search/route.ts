@@ -4,7 +4,7 @@ import { apiError } from "@/lib/api-response";
 import { cacheSearch, findCachedMedia, getCachedSearch, purgeExpiredMediaCache } from "@/lib/media-cache";
 import { isDemoMode, searchMedia } from "@/lib/tmdb";
 import { enforceRateLimit } from "@/lib/request-security";
-import { getBookmarkMap } from "@/lib/data";
+import { getBookmarkMap, getProfileLanguage } from "@/lib/data";
 import type { MediaSummary } from "@/lib/types";
 
 const querySchema = z.string().trim().min(2).max(200);
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       .default(1)
       .parse(request.nextUrl.searchParams.get("page") ?? "1");
     enforceRateLimit(request, "search", 60, 60_000);
+    const language = await getProfileLanguage();
     const cachedQuery = await getCachedSearch(query, page);
     if (cachedQuery) {
       const results = await addBookmarks(cachedQuery.results);
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     const localResults = page === 1 ? await findCachedMedia(query) : [];
     let remote;
     try {
-      remote = await searchMedia(query, page);
+      remote = await searchMedia(query, page, language);
     } catch (error) {
       if (localResults.length) {
         return NextResponse.json({

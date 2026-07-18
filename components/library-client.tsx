@@ -6,6 +6,7 @@ import { Library, Search, SlidersHorizontal } from "lucide-react";
 import type { RatingRecord } from "@/lib/types";
 import { MediaCard } from "@/components/media-card";
 import { MediaTypeGroups } from "@/components/media-type-groups";
+import { useI18n } from "@/components/app-provider";
 
 interface Payload {
   ratings: RatingRecord[];
@@ -14,6 +15,7 @@ interface Payload {
 }
 
 export function LibraryClient() {
+  const { t } = useI18n();
   const [data, setData] = useState<Payload>({ ratings: [], genres: [], totalRatings: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -29,11 +31,11 @@ export function LibraryClient() {
       if (!response.ok) throw new Error(json.error);
       setData(json);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Laden fehlgeschlagen.");
+      setError(reason instanceof Error ? reason.message : t("library.loadError"));
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 180);
@@ -47,96 +49,94 @@ export function LibraryClient() {
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Dein Verlauf</p>
-          <h1>Meine Bewertungen</h1>
-          <p className="lead">Alle Titel, die dein persönliches Profil prägen – jederzeit änderbar.</p>
+          <p className="eyebrow">{t("library.eyebrow")}</p>
+          <h1>{t("library.title")}</h1>
+          <p className="lead">{t("library.lead")}</p>
         </div>
         <div className="stat-pill">
           <strong>{data.ratings.length}</strong>
-          <span>angezeigt</span>
+          <span>{t("common.shown")}</span>
         </div>
       </div>
       <div className="filter-bar">
         <label className="filter-search">
-          <span className="sr-only">In Bewertungen suchen</span>
+          <span className="sr-only">{t("library.search")}</span>
           <Search size={17} />
           <input
             value={filters.query}
             onChange={(event) => update("query", event.target.value)}
-            placeholder="In Bewertungen suchen"
-            aria-label="In Bewertungen suchen"
+            placeholder={t("library.search")}
+            aria-label={t("library.search")}
           />
         </label>
         <label>
-          <span className="sr-only">Bewertung</span>
+          <span className="sr-only">{t("filter.rating")}</span>
           <select value={filters.value} onChange={(event) => update("value", event.target.value)}>
-            <option value="">Alle Meinungen</option>
-            <option value="like">Gefällt mir</option>
-            <option value="dislike">Gefällt mir nicht</option>
-            <option value="neutral">Neutral</option>
+            <option value="">{t("library.allRatings")}</option>
+            <option value="like">{t("rating.like")}</option>
+            <option value="dislike">{t("rating.dislikeTitle")}</option>
+            <option value="neutral">{t("rating.neutral")}</option>
           </select>
         </label>
         <label>
-          <span className="sr-only">Typ</span>
+          <span className="sr-only">{t("filter.type")}</span>
           <select value={filters.type} onChange={(event) => update("type", event.target.value)}>
-            <option value="">Film & Serie</option>
-            <option value="movie">Nur Filme</option>
-            <option value="tv">Nur Serien</option>
+            <option value="">{t("filter.allTypes")}</option>
+            <option value="movie">{t("filter.moviesOnly")}</option>
+            <option value="tv">{t("filter.seriesOnly")}</option>
           </select>
         </label>
         <label>
-          <span className="sr-only">Genre</span>
+          <span className="sr-only">{t("filter.genre")}</span>
           <select value={filters.genre} onChange={(event) => update("genre", event.target.value)}>
-            <option value="">Alle Genres</option>
+            <option value="">{t("library.allGenres")}</option>
             {data.genres.map((genre) => (
               <option key={genre}>{genre}</option>
             ))}
           </select>
         </label>
         <label>
-          <span className="sr-only">Sortierung</span>
+          <span className="sr-only">{t("filter.sort")}</span>
           <select value={filters.sort} onChange={(event) => update("sort", event.target.value)}>
-            <option value="newest">Neueste zuerst</option>
-            <option value="oldest">Älteste zuerst</option>
-            <option value="title">Nach Titel</option>
+            <option value="newest">{t("filter.newest")}</option>
+            <option value="oldest">{t("filter.oldest")}</option>
+            <option value="title">{t("filter.title")}</option>
           </select>
         </label>
       </div>
       {loading ? (
         <div className="status-panel" aria-live="polite" aria-busy="true">
           <div className="spinner" />
-          <p>Bibliothek wird geladen …</p>
+          <p>{t("library.loading")}</p>
         </div>
       ) : error ? (
         <div className="status-panel" role="alert">
-          <h2>Bibliothek nicht verfügbar</h2>
+          <h2>{t("library.unavailable")}</h2>
           <p>{error}</p>
           <button className="button" onClick={load}>
-            Erneut laden
+            {t("common.reload")}
           </button>
         </div>
       ) : data.ratings.length === 0 ? (
         data.totalRatings > 0 ? (
           <div className="status-panel">
             <SlidersHorizontal size={38} />
-            <h2>Keine passenden Bewertungen</h2>
-            <p>Mit den gewählten Filtern wurde kein Titel gefunden.</p>
+            <h2>{t("library.filteredEmpty")}</h2>
+            <p>{t("filter.noMatches")}</p>
             <button
               className="button"
               onClick={() => setFilters({ query: "", value: "", type: "", genre: "", sort: "newest" })}
             >
-              Filter zurücksetzen
+              {t("filter.reset")}
             </button>
           </div>
         ) : (
           <div className="status-panel">
             <Library size={38} />
-            <h2>Noch nichts in diesem Regal</h2>
-            <p>
-              Bewerte ein paar bekannte Filme oder Serien. Sie erscheinen hier und verbessern sofort deine Vorschläge.
-            </p>
+            <h2>{t("library.empty")}</h2>
+            <p>{t("library.emptyBody")}</p>
             <Link href="/search" className="button primary">
-              Titel suchen
+              {t("library.find")}
             </Link>
           </div>
         )

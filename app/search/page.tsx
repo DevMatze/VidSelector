@@ -1,6 +1,7 @@
 import { SearchClient } from "@/components/search-client";
+import { localizedTitle } from "@/lib/localized-metadata";
 
-export const metadata = { title: "Suche" };
+export const generateMetadata = () => localizedTitle("nav.search");
 export default function SearchPage() {
   return <SearchClient />;
 }

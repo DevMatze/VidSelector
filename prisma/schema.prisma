@@ -10,6 +10,7 @@ datasource db {
 model User {
   id              String           @id @default(cuid())
   name            String
+  language        String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   ratings         Rating[]
@@ -19,6 +20,7 @@ model User {
 
 model MediaItem {
   id               String           @id @default(cuid())
+  scopeId          String           @default("local-user")
   tmdbId           Int
   type             String
   title            String
@@ -43,12 +45,13 @@ model MediaItem {
   recommendations  Recommendation[]
   watchEntries     WatchEntry[]
 
-  @@unique([tmdbId, type])
-  @@index([type])
+  @@unique([tmdbId, type, scopeId])
+  @@index([scopeId, type])
 }
 
 model SearchCache {
   id         String   @id @default(cuid())
+  scopeId    String   @default("local-user")
   query      String
   page       Int      @default(1)
   resultKeys String   @default("[]")
@@ -57,8 +60,8 @@ model SearchCache {
   updatedAt  DateTime @updatedAt
   expiresAt  DateTime
 
-  @@unique([query, page])
-  @@index([expiresAt])
+  @@unique([query, page, scopeId])
+  @@index([scopeId, expiresAt])
 }
 
 model Rating {

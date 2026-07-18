@@ -7,12 +7,14 @@ const mocks = vi.hoisted(() => ({
   getCachedMediaDetails: vi.fn(),
   getMediaDetails: vi.fn(),
   saveRating: vi.fn(),
+  getProfileLanguage: vi.fn(),
 }));
 vi.mock("@/lib/data", () => ({
   getRatings: mocks.getRatings,
   getRating: vi.fn(),
   deleteRating: vi.fn(),
   saveRating: mocks.saveRating,
+  getProfileLanguage: mocks.getProfileLanguage,
 }));
 vi.mock("@/lib/media-cache", () => ({ getCachedMediaDetails: mocks.getCachedMediaDetails }));
 vi.mock("@/lib/tmdb", () => ({ getMediaDetails: mocks.getMediaDetails, TmdbError: class TmdbError extends Error {} }));

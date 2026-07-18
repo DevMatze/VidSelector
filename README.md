@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/Nutzung-persönlich%20%26%20nicht--kommerziell-ef4056" alt="Persönliche und nicht-kommerzielle Nutzung">
 </p>
 
-VidSelector ist eine lokale Einzelplatz-Web-App, mit der du Filme und Serien bewertest und daraus persönliche Empfehlungen erhältst. Es gibt keine Anmeldung, keine Werbung, kein externes Nutzertracking und keinen gehosteten VidSelector-Dienst. Dein Profil und deine Bewertungen bleiben in deiner eigenen SQLite-Datenbank.
+VidSelector ist eine lokale Web-App, mit der du Filme und Serien bewertest und daraus persönliche Empfehlungen erhältst. Standardmäßig arbeitet sie mit genau einem Profil; optional lassen sich mehrere lokale Haushaltsprofile aktivieren. Es gibt keine Anmeldung, keine Werbung, kein externes Nutzertracking und keinen gehosteten VidSelector-Dienst. Profile und Bewertungen bleiben in deiner eigenen SQLite-Datenbank.
 
 > [!IMPORTANT]
 > VidSelector ist ein persönliches, nicht-kommerzielles Hobbyprojekt. Es ist weder ein Streamingdienst noch eine öffentliche Mehrbenutzerplattform.
@@ -35,6 +35,9 @@ VidSelector ist eine lokale Einzelplatz-Web-App, mit der du Filme und Serien bew
 - **Lokale Datensicherung:** versionierter Export, validierter Import und automatische Backups
 - **Demo-Modus:** direkt ohne API-Zugang testbar
 - **Responsive UI:** für Desktop und Smartphone
+- **Mehrsprachige Oberfläche:** Deutsch, Englisch, Spanisch und Französisch pro Profil
+- **Optionale Benutzerverwaltung:** getrennte lokale Profile ohne Cloud-Konto oder Anmeldung
+- **Validierte YAML-Konfiguration:** Server, Empfehlungen, Sicherungen, Logging und Funktionsschalter
 
 ## Vorschau
 
@@ -66,15 +69,15 @@ Die zentralen Gewichte liegen in [`lib/recommendations/config.ts`](lib/recommend
 
 ### Begrenzte Startseite, vollständige Kategorien
 
-- **Top-Auswahl für dich:** bis zu 50 der stärksten Filme und zusätzlich bis zu 50 der stärksten Serien
-- **Passende Filme:** bis zu 50 weitere Filme außerhalb der Top- und Entdeckungsauswahl
-- **Passende Serien:** bis zu 50 weitere Serien außerhalb der Top- und Entdeckungsauswahl
-- **Etwas Neues ausprobieren:** jeweils bis zu 50 eigene Film- und Serienentdeckungen außerhalb der bisherigen Auswahl
+- **Top-Auswahl für dich:** standardmäßig bis zu 50 der stärksten Filme und zusätzlich bis zu 50 der stärksten Serien
+- **Passende Filme:** standardmäßig bis zu 50 weitere Filme außerhalb der Top- und Entdeckungsauswahl
+- **Passende Serien:** standardmäßig bis zu 50 weitere Serien außerhalb der Top- und Entdeckungsauswahl
+- **Etwas Neues ausprobieren:** standardmäßig jeweils bis zu 50 eigene Film- und Serienentdeckungen
 
 Die Kontingente für Filme und Serien werden unabhängig voneinander gezählt. Ein Titel wird auf der Startseite trotzdem
 nur einer dieser Rubriken zugeordnet. Auf den zugehörigen „Siehe mehr“-Seiten entfällt das 50er-Limit: Sie zeigen den
-vollständigen aktuell berechneten Empfehlungspool der gewählten Kategorie, zunächst 20 Titel und danach in
-20er-Schritten. Weil diese erweiterten Ansichten semantisch statt nach den Startseitenkontingenten filtern, kann ein
+vollständigen aktuell berechneten Empfehlungspool der gewählten Kategorie, standardmäßig zunächst 20 Titel und danach
+in 20er-Schritten. Beide Werte lassen sich in `config.yml` ändern. Weil diese erweiterten Ansichten semantisch statt nach den Startseitenkontingenten filtern, kann ein
 starker Titel dort in mehreren passenden Ansichten vorkommen.
 
 ### Bewertung und Merkliste
@@ -108,6 +111,7 @@ git clone https://github.com/DevMatze/VidSelector.git
 cd VidSelector
 npm install
 cp .env.example .env
+cp config.example config.yml
 npm run setup
 npm run dev
 ```
@@ -133,16 +137,47 @@ Ohne Zugangsdaten verwendet VidSelector automatisch den integrierten Demo-Katalo
 
 1. Bei [TMDB API Settings](https://www.themoviedb.org/settings/api) einen API-Zugang erstellen.
 2. `.env` öffnen und bevorzugt das v4 Read Access Token eintragen.
-3. `DEMO_MODE=false` setzen und den Server neu starten.
+3. In `config.yml` `catalog.force_demo: false` setzen und den Server neu starten.
 
 ```dotenv
 TMDB_BEARER_TOKEN=
 TMDB_API_KEY=
 DATABASE_URL="file:./dev.db"
-DEMO_MODE=false
 ```
 
 Alternativ funktioniert der klassische `TMDB_API_KEY`. Beide Zugangsdaten bleiben ausschließlich auf dem Next.js-Server und gehören niemals in Git oder in einen Screenshot.
+
+## Konfiguration
+
+`config.example` dokumentiert jede verfügbare Einstellung auf Deutsch. Kopiere die Datei nach `config.yml`; die
+lokale Datei wird nicht in Git aufgenommen. Ungültige Werte, unbekannte Optionen oder falsche Datentypen brechen den
+Serverstart mit einer klaren Fehlermeldung ab, statt wirkungslos ignoriert zu werden.
+
+Konfigurierbar sind:
+
+- Listening-Adresse und Port
+- Standardsprache für neu angelegte Profile; die aktuelle Sprache wird anschließend im Profil gespeichert
+- Profilmodus `simple` für einen Benutzer oder `multiple` für die lokale Benutzerverwaltung
+- erzwungener Demo-Katalog
+- Startseitenlimit, Nachladegröße und Empfehlungserklärungen
+- Sicherungsverzeichnis, Auslöser und Aufbewahrung
+- Log-Level, Anfrageprotokollierung und optionale Log-Datei
+- Profilimport/-export, Streaminganbieter, Trailer und ähnliche Titel
+
+Zugangsdaten und `DATABASE_URL` bleiben bewusst in `.env`. Funktionsschalter deaktivieren nicht nur die sichtbare UI,
+sondern auch die zugehörigen API-Routen beziehungsweise externen Datenabfragen.
+
+Der Standard bleibt der einfache Einzelbenutzermodus:
+
+```yaml
+users:
+  mode: "simple"
+```
+
+Mit `mode: "multiple"` erscheint oben rechts am Profilbild der Benutzerumschalter sowie die Verwaltungsseite. Jeder
+Benutzer erhält einen eigenen Mediencache, eigene Bewertungen, Empfehlungen, Merkliste, Sprache, Import-/Exportdaten
+und Profilsicherungen. Die Profile sind eine Komfortfunktion für ein vertrauenswürdiges Heimnetz und keine Anmeldung
+oder Zugriffskontrolle.
 
 ## Als lokaler Service betreiben
 
@@ -161,8 +196,9 @@ systemctl --user restart vidselector
 journalctl --user -u vidselector -f
 ```
 
-Der Service lauscht auf `0.0.0.0:3000`. Dadurch bleibt er auf dem Computer über `http://localhost:3000` und von einem
-Gerät im selben Heimnetz über `http://<LAN-IP-des-Computers>:3000` erreichbar.
+Der Service verwendet `server.host` und `server.port` aus `config.yml` (standardmäßig `0.0.0.0:3000`). Dadurch bleibt
+er auf dem Computer über `http://localhost:3000` und von einem Gerät im selben Heimnetz über
+`http://<LAN-IP-des-Computers>:3000` erreichbar.
 
 ## Lokaler Cache und Datenhaltung
 
@@ -178,6 +214,7 @@ Abgelaufene ungenutzte Medien werden gelöscht. Ist ein Titel weiterhin mit eine
 Nicht in Git gespeichert werden:
 
 - `.env` und API-Zugangsdaten
+- `config.yml` mit den lokalen Einstellungen
 - `prisma/dev.db` mit Profil und Bewertungen
 - Build-, Coverage- und Testartefakte
 - `node_modules`
@@ -185,13 +222,13 @@ Nicht in Git gespeichert werden:
 
 ## Export, Import und Backups
 
-Unter **Einstellungen → Datensicherung** kannst du Profilname, Bewertungen und Merkliste als versionierte JSON-Datei
+Unter **Einstellungen → Datensicherung** kannst du Profilname, Profilsprache, Bewertungen und Merkliste als versionierte JSON-Datei
 exportieren. Beim Import stehen Zusammenführen und vollständiges Ersetzen zur Auswahl. Vor einem Import oder einer
 Profilrücksetzung legt VidSelector automatisch eine zusätzliche lokale Sicherung an.
 
-`npm run db:push` erstellt außerdem vor jeder Migration eine konsistente SQLite-Sicherung. Die zehn neuesten
-Datenbanksicherungen werden unter `backups/database` aufbewahrt; automatische Profilsicherungen behalten sieben
-tägliche und bis zu vier ältere wöchentliche Stände. Diese Dateien verlassen deinen Computer nicht.
+`npm run db:push` erstellt außerdem standardmäßig vor jeder Migration eine konsistente SQLite-Sicherung. Verzeichnis,
+Auslöser und Aufbewahrung werden über `config.yml` gesteuert. Die Vorgaben behalten zehn Datenbanksicherungen, sieben
+tägliche und bis zu vier ältere wöchentliche Profilstände. Diese Dateien verlassen deinen Computer nicht.
 
 ## Qualitätssicherung
 
@@ -218,6 +255,8 @@ lib/data.ts           Prisma-Persistenz und lokales Profil
 lib/recommendations/  Profilbildung, Ranking und Diversifizierung
 lib/profile-transfer.ts versioniertes Export- und Importformat
 lib/profile-backups.ts automatische lokale Profilsicherungen
+lib/config.mjs        validierte YAML-Konfiguration
+lib/i18n.ts           erweiterbare UI-Übersetzungen
 prisma/               SQLite-Schema, Migrationen und Seed
 tests/e2e/             Playwright-Smoke-Tests
 deploy/                systemd-Servicevorlage
@@ -244,7 +283,7 @@ deploy/                systemd-Servicevorlage
 
 ## Datenschutz und Sicherheit
 
-- keine Benutzerkonten oder Cloud-Synchronisation
+- keine Online-Konten oder Cloud-Synchronisation
 - keine Analyse-, Werbe- oder Trackingdienste
 - serverseitige TMDB-Authentifizierung
 - Herkunftsprüfung für schreibende API-Anfragen
@@ -252,10 +291,10 @@ deploy/                systemd-Servicevorlage
 - lokale, validierte Datenexporte und Sicherungen
 - Security-Header und Herkunftsprüfung schreibender Anfragen
 
-VidSelector besitzt keine Anmeldung und ist ausdrücklich für einen einzelnen Benutzer in einem vertrauenswürdigen
-privaten Heimnetz ausgelegt. Jedes Gerät, das den Server auf Port 3000 erreicht, kann die Anwendung verwenden und deine
-Bewertungen oder Merkliste ändern. Richte daher keine Portweiterleitung im Router ein und verwende VidSelector nicht in
-einem öffentlichen oder nicht vertrauenswürdigen WLAN. Für einen öffentlichen Betrieb wären zuvor eine echte
+VidSelector besitzt keine Anmeldung und ist ausdrücklich für Benutzer eines vertrauenswürdigen privaten Heimnetzes
+ausgelegt. Auch bei aktivierter lokaler Benutzerverwaltung kann jedes Gerät, das den Server auf Port 3000 erreicht,
+Profile auswählen und deren Daten ändern. Richte daher keine Portweiterleitung im Router ein und verwende VidSelector
+nicht in einem öffentlichen oder nicht vertrauenswürdigen WLAN. Für einen öffentlichen Betrieb wären zuvor eine echte
 Authentifizierung, TLS und eine eigene Sicherheitsprüfung erforderlich.
 
 Sicherheitsprobleme bitte nicht als öffentliches Issue melden. Hinweise stehen in [`SECURITY.md`](SECURITY.md).

@@ -1,13 +1,20 @@
 import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { exportProfileData } from "@/lib/data";
+import { appConfig } from "@/lib/config.mjs";
+import {
+  automaticProfileBackupsToDelete,
+  shouldCreateProfileBackup,
+  type ProfileBackupReason,
+} from "@/lib/backup-policy";
+import { getActiveUserId, isMultipleUserMode } from "@/lib/users";
 
 const BACKUP_INTERVAL = 24 * 60 * 60 * 1_000;
-let lastAutomaticBackup = 0;
-let backupPromise: Promise<string | null> | null = null;
+const lastAutomaticBackups = new Map<string, number>();
+const backupPromises = new Map<string, Promise<string | null>>();
 
-function backupDirectory() {
-  return path.join(process.cwd(), "backups", "profile");
+function backupDirectory(userId: string) {
+  return path.resolve(process.cwd(), appConfig.backups.directory, "profile", ...(isMultipleUserMode ? [userId] : []));
 }
 
 function timestamp(date = new Date()) {
@@ -15,30 +22,22 @@ function timestamp(date = new Date()) {
 }
 
 async function pruneAutomaticBackups(directory: string) {
-  const files = (await readdir(directory))
-    .filter((file) => file.startsWith("automatic-") && file.endsWith(".json"))
-    .sort()
-    .reverse();
-  const keep = new Set(files.slice(0, 7));
-  const weekly = new Set<string>();
-  for (const file of files.slice(7)) {
-    const match = file.match(/automatic-(\d{4})-(\d{2})-(\d{2})/);
-    if (!match) continue;
-    const date = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`);
-    const firstDay = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    const week = `${date.getUTCFullYear()}-${Math.ceil(((date.getTime() - firstDay.getTime()) / 86_400_000 + firstDay.getUTCDay() + 1) / 7)}`;
-    if (weekly.size < 4 && !weekly.has(week)) {
-      weekly.add(week);
-      keep.add(file);
-    }
-  }
-  await Promise.all(files.filter((file) => !keep.has(file)).map((file) => unlink(path.join(directory, file))));
+  const files = await readdir(directory);
+  await Promise.all(
+    automaticProfileBackupsToDelete(
+      files,
+      appConfig.backups.daily_profile_backups,
+      appConfig.backups.weekly_profile_backups,
+    ).map((file) => unlink(path.join(directory, file))),
+  );
 }
 
-export async function createProfileBackup(reason: "automatic" | "before-import" | "before-reset") {
+export async function createProfileBackup(reason: ProfileBackupReason) {
+  if (!shouldCreateProfileBackup(appConfig.backups, reason)) return null;
+  const userId = await getActiveUserId();
   const data = await exportProfileData();
   if (data.ratings.length === 0 && data.watchEntries.length === 0) return null;
-  const directory = backupDirectory();
+  const directory = backupDirectory(userId);
   await mkdir(directory, { recursive: true });
   const filename = `${reason}-${timestamp()}.json`;
   const target = path.join(directory, filename);
@@ -48,16 +47,19 @@ export async function createProfileBackup(reason: "automatic" | "before-import" 
 }
 
 export async function maintainAutomaticProfileBackups() {
-  if (Date.now() - lastAutomaticBackup < BACKUP_INTERVAL) return null;
-  if (!backupPromise) {
-    backupPromise = createProfileBackup("automatic")
+  if (!appConfig.backups.enabled) return null;
+  const userId = await getActiveUserId();
+  if (Date.now() - (lastAutomaticBackups.get(userId) ?? 0) < BACKUP_INTERVAL) return null;
+  if (!backupPromises.has(userId)) {
+    const promise = createProfileBackup("automatic")
       .then((result) => {
-        lastAutomaticBackup = Date.now();
+        lastAutomaticBackups.set(userId, Date.now());
         return result;
       })
       .finally(() => {
-        backupPromise = null;
+        backupPromises.delete(userId);
       });
+    backupPromises.set(userId, promise);
   }
-  return backupPromise;
+  return backupPromises.get(userId)!;
 }

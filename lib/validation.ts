@@ -36,6 +36,7 @@ const watchProviderSchema = z.object({
 });
 
 export const mediaDetailsSchema = mediaSummarySchema.extend({
+  featureFingerprint: z.string().max(100).optional(),
   runtime: z.number().int().positive().optional(),
   seasons: z.number().int().nonnegative().optional(),
   episodes: z.number().int().nonnegative().optional(),

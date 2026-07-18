@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { mediaTypeSchema, ratingValueSchema } from "@/lib/validation";
+import { supportedLanguages } from "@/lib/config.mjs";
+
+const uiLanguageSchema = z.enum(supportedLanguages);
 
 const exportedMediaSchema = z.object({
   type: mediaTypeSchema,
@@ -21,7 +24,10 @@ const exportedWatchEntrySchema = exportedMediaSchema.extend({
 const profileBaseSchema = z.object({
   format: z.literal("vidselector-profile"),
   exportedAt: z.string().datetime(),
-  profile: z.object({ name: z.string().trim().min(1).max(80) }),
+  profile: z.object({
+    name: z.string().trim().min(1).max(80),
+    language: uiLanguageSchema.optional(),
+  }),
   ratings: z.array(exportedRatingSchema).max(10_000),
 });
 

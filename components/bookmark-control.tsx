@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import type { MediaSummary } from "@/lib/types";
+import { useI18n } from "@/components/app-provider";
 
 export function BookmarkControl({
   media,
@@ -15,6 +16,7 @@ export function BookmarkControl({
   compact?: boolean;
   onChange?: (bookmarked: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -36,7 +38,7 @@ export function BookmarkControl({
       setBookmarked(nextBookmarked);
       onChange?.(nextBookmarked);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Merkliste konnte nicht geändert werden.");
+      setError(reason instanceof Error ? reason.message : t("bookmark.error"));
     } finally {
       setPending(false);
     }
@@ -53,11 +55,11 @@ export function BookmarkControl({
         disabled={pending}
         onClick={toggle}
         aria-pressed={bookmarked}
-        aria-label={bookmarked ? `Von der Merkliste entfernen: ${media.title}` : `Merken: ${media.title}`}
-        title={bookmarked ? "Von der Merkliste entfernen" : "Merken"}
+        aria-label={t(bookmarked ? "bookmark.removeLabel" : "bookmark.addLabel", { title: media.title })}
+        title={t(bookmarked ? "bookmark.remove" : "bookmark.add")}
       >
         <Icon size={compact ? 16 : 17} fill={bookmarked ? "currentColor" : "none"} />
-        {!compact && <span>{bookmarked ? "Gemerkt" : "Merken"}</span>}
+        {!compact && <span>{t(bookmarked ? "bookmark.added" : "bookmark.add")}</span>}
       </button>
       {error && (
         <p className={compact ? "sr-only" : "inline-error"} role="alert">

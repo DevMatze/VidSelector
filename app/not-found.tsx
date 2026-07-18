@@ -1,13 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useI18n } from "@/components/app-provider";
 
 export default function NotFound() {
+  const { t } = useI18n();
   return (
     <div className="page-shell">
       <div className="status-panel">
-        <h1>Seite nicht gefunden</h1>
-        <p>Dieser Titel oder diese Seite ist nicht verfügbar.</p>
+        <h1>{t("common.notFound")}</h1>
+        <p>{t("common.notFoundBody")}</p>
         <Link className="button primary" href="/">
-          Zur Startseite
+          {t("common.home")}
         </Link>
       </div>
     </div>

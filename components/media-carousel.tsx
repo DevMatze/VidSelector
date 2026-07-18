@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
+import { useI18n } from "@/components/app-provider";
 
 export function MediaCarousel<T>({
   items,
@@ -15,6 +16,7 @@ export function MediaCarousel<T>({
   label: string;
   pageSize?: number;
 }) {
+  const { t } = useI18n();
   const trackRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
@@ -31,19 +33,24 @@ export function MediaCarousel<T>({
 
   return (
     <div className="carousel-shell">
-      <div className="carousel-buttons carousel-overlay" aria-label={`Navigation für ${label}`}>
+      <div className="carousel-buttons carousel-overlay" aria-label={t("common.carouselNav", { label })}>
         {currentPage > 0 && (
           <button
             className="carousel-previous"
             type="button"
             onClick={() => move(-1)}
-            aria-label={`Vorherige ${label}`}
+            aria-label={t("common.previous", { label })}
           >
             <ChevronLeft size={22} />
           </button>
         )}
         {currentPage < pages - 1 && (
-          <button className="carousel-next" type="button" onClick={() => move(1)} aria-label={`Nächste ${label}`}>
+          <button
+            className="carousel-next"
+            type="button"
+            onClick={() => move(1)}
+            aria-label={t("common.next", { label })}
+          >
             <ChevronRight size={22} />
           </button>
         )}
@@ -52,7 +59,7 @@ export function MediaCarousel<T>({
         className="media-carousel"
         ref={trackRef}
         tabIndex={0}
-        aria-label={`${label}, Seite ${currentPage + 1} von ${pages}`}
+        aria-label={t("common.pageOf", { label, page: currentPage + 1, pages })}
       >
         {visibleItems.map(renderItem)}
       </div>

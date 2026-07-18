@@ -1,6 +1,7 @@
 import type { MediaType, ScoredRecommendation } from "@/lib/types";
 
-export const RECOMMENDATIONS_PER_MEDIA_TYPE = 50;
+export const DEFAULT_RECOMMENDATIONS_PER_MEDIA_TYPE = 50;
+export const RECOMMENDATIONS_PER_MEDIA_TYPE = DEFAULT_RECOMMENDATIONS_PER_MEDIA_TYPE;
 
 export const RECOMMENDATION_CATEGORIES = {
   more: {
@@ -31,21 +32,23 @@ export function recommendationsForCategory(
   slug: RecommendationCategorySlug,
   recommendations: ScoredRecommendation[],
   additionallyExcludedKeys: ReadonlySet<string> = new Set(),
+  limitPerMediaType = DEFAULT_RECOMMENDATIONS_PER_MEDIA_TYPE,
 ): ScoredRecommendation[] {
   const available = recommendations.slice(1).filter((item) => !additionallyExcludedKeys.has(mediaKey(item)));
-  const top = takePerMediaType(available, () => true);
+  const top = takePerMediaType(available, () => true, limitPerMediaType);
   const topKeys = new Set(top.map(mediaKey));
   const afterTop = available.filter((item) => !topKeys.has(mediaKey(item)));
   const movies = afterTop
     .filter((item) => item.media.type === "movie" && item.source !== "discovery")
-    .slice(0, RECOMMENDATIONS_PER_MEDIA_TYPE);
+    .slice(0, limitPerMediaType);
   const series = afterTop
     .filter((item) => item.media.type === "tv" && item.source !== "discovery")
-    .slice(0, RECOMMENDATIONS_PER_MEDIA_TYPE);
+    .slice(0, limitPerMediaType);
   const assignedKeys = new Set([...top, ...movies, ...series].map(mediaKey));
   const discovery = takePerMediaType(
     available.filter((item) => !assignedKeys.has(mediaKey(item))),
     () => true,
+    limitPerMediaType,
   );
 
   return { more: top, movies, series, discovery }[slug];
@@ -70,8 +73,9 @@ export function expandedRecommendationsForCategory(
 function takePerMediaType(
   recommendations: ScoredRecommendation[],
   predicate: (item: ScoredRecommendation) => boolean,
+  limitPerMediaType = DEFAULT_RECOMMENDATIONS_PER_MEDIA_TYPE,
 ): ScoredRecommendation[] {
-  const remaining = { movie: RECOMMENDATIONS_PER_MEDIA_TYPE, tv: RECOMMENDATIONS_PER_MEDIA_TYPE };
+  const remaining = { movie: limitPerMediaType, tv: limitPerMediaType };
   return recommendations.filter((item) => {
     const type = item.media.type;
     if (!predicate(item) || remaining[type] === 0) return false;

@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import { CategoryClient } from "@/components/category-client";
 import {
   categorySupportsMediaType,
-  categoryTitleForMediaType,
   isRecommendationCategorySlug,
   RECOMMENDATION_CATEGORIES,
 } from "@/lib/recommendation-categories";
 import type { MediaType } from "@/lib/types";
+import { getProfileLanguage } from "@/lib/data";
+import { translate } from "@/lib/i18n";
 
 interface Props {
   params: Promise<{ slug: string; mediaType: string }>;
@@ -31,7 +32,11 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const values = await params;
   const parsed = parseParams(values.slug, values.mediaType);
-  return parsed ? { title: categoryTitleForMediaType(parsed.slug, parsed.mediaType) } : {};
+  if (!parsed) return {};
+  const language = await getProfileLanguage();
+  const base = translate(language, `category.${parsed.slug}.title`);
+  const suffix = translate(language, parsed.mediaType === "movie" ? "common.movies" : "common.seriesPlural");
+  return { title: parsed.slug === "movies" || parsed.slug === "series" ? base : `${base} – ${suffix}` };
 }
 
 export default async function CategoryMediaPage({ params }: Props) {

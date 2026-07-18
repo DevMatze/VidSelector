@@ -1,12 +1,20 @@
 import { DEMO_CATALOG, getDemoDetails, searchDemo } from "@/lib/demo-data";
-import { genreIdsMatchingQuery, genreNameForId, normalizeMediaGenres } from "@/lib/genres";
-import type { Genre, MediaDetails, MediaSummary, MediaType, Person, WatchProvider } from "@/lib/types";
+import { genreIdsMatchingQuery, genreNameForId, localizeGenreName, normalizeMediaGenres } from "@/lib/genres";
+import type { Genre, MediaDetails, MediaSummary, MediaType, Person, RatingValue, WatchProvider } from "@/lib/types";
+import { appConfig } from "@/lib/config.mjs";
+import { languageLocales, translate, type UiLanguage } from "@/lib/i18n";
+import { applyConfiguredMediaFeatures, mediaDetailRequestPlan, mediaFeatureFingerprint } from "@/lib/media-features";
+export { imageUrl } from "@/lib/tmdb-image";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const apiKey = process.env.TMDB_API_KEY?.trim();
 const bearerToken = process.env.TMDB_BEARER_TOKEN?.trim();
 
-export const isDemoMode = (!apiKey && !bearerToken) || process.env.DEMO_MODE === "true";
+export function determineDemoMode(credentials: { apiKey?: string; bearerToken?: string }, forceDemo: boolean) {
+  return (!credentials.apiKey && !credentials.bearerToken) || forceDemo;
+}
+
+export const isDemoMode = determineDemoMode({ apiKey, bearerToken }, appConfig.catalog.force_demo);
 
 export class TmdbError extends Error {
   constructor(
@@ -22,11 +30,12 @@ async function tmdbFetch<T>(
   path: string,
   params: Record<string, string | number | undefined> = {},
   fresh = false,
+  language: UiLanguage = "de",
 ): Promise<T> {
   if (!apiKey && !bearerToken) throw new TmdbError("TMDB ist noch nicht konfiguriert.", 503);
   const url = new URL(`${TMDB_BASE_URL}${path}`);
   if (apiKey && !bearerToken) url.searchParams.set("api_key", apiKey);
-  url.searchParams.set("language", "de-DE");
+  url.searchParams.set("language", languageLocales[language]);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) url.searchParams.set(key, String(value));
   }
@@ -92,30 +101,38 @@ interface TmdbMedia {
   [key: string]: unknown;
 }
 
-let genreMapPromise: Promise<Map<number, string>> | null = null;
-async function getGenreMap(): Promise<Map<number, string>> {
-  genreMapPromise ??= Promise.all([
-    tmdbFetch<TmdbGenreResponse>("/genre/movie/list"),
-    tmdbFetch<TmdbGenreResponse>("/genre/tv/list"),
+const genreMapPromises = new Map<UiLanguage, Promise<Map<number, string>>>();
+async function getGenreMap(language: UiLanguage): Promise<Map<number, string>> {
+  const existing = genreMapPromises.get(language);
+  if (existing) return existing;
+  const request = Promise.all([
+    tmdbFetch<TmdbGenreResponse>("/genre/movie/list", {}, false, language),
+    tmdbFetch<TmdbGenreResponse>("/genre/tv/list", {}, false, language),
   ])
     .then(([movies, tv]) => new Map([...movies.genres, ...tv.genres].map((genre) => [genre.id, genre.name])))
     .catch((error) => {
-      genreMapPromise = null;
+      genreMapPromises.delete(language);
       throw error;
     });
-  return genreMapPromise;
+  genreMapPromises.set(language, request);
+  return request;
 }
 
-function mapSummary(raw: TmdbMedia, type: MediaType, genreMap?: Map<number, string>): MediaSummary {
+function mapSummary(
+  raw: TmdbMedia,
+  type: MediaType,
+  genreMap?: Map<number, string>,
+  language: UiLanguage = "de",
+): MediaSummary {
   const genreList =
     raw.genres ??
     (raw.genre_ids ?? []).map((id) => ({ id, name: genreMap?.get(id) ?? genreNameForId(id) ?? "Sonstiges" }));
-  return normalizeMediaGenres({
+  const normalized = normalizeMediaGenres({
     tmdbId: raw.id,
     type,
-    title: raw.title ?? raw.name ?? "Unbekannter Titel",
+    title: raw.title ?? raw.name ?? translate(language, "content.unknownTitle"),
     originalTitle: raw.original_title ?? raw.original_name,
-    overview: raw.overview || "Für diesen Titel ist noch keine Beschreibung verfügbar.",
+    overview: raw.overview || translate(language, "content.noDescription"),
     posterPath: raw.poster_path ?? null,
     backdropPath: raw.backdrop_path ?? null,
     releaseDate: raw.release_date ?? raw.first_air_date ?? "",
@@ -125,11 +142,93 @@ function mapSummary(raw: TmdbMedia, type: MediaType, genreMap?: Map<number, stri
     popularity: raw.popularity ?? 0,
     originalLanguage: raw.original_language ?? "",
   });
+  return {
+    ...normalized,
+    genres: normalized.genres.map((genre) => {
+      if (genre.name === "Anime") return genre;
+      const canonicalName = genreNameForId(genre.id);
+      return {
+        ...genre,
+        name: canonicalName ? localizeGenreName(canonicalName, language) : (genreMap?.get(genre.id) ?? genre.name),
+      };
+    }),
+  };
 }
 
-export async function searchMedia(query: string, page = 1): Promise<{ results: MediaSummary[]; totalPages: number }> {
+export interface RelatedMediaAnchor {
+  type: MediaType;
+  tmdbId: number;
+  value: RatingValue;
+}
+
+export interface RelatedMediaCandidate {
+  media: MediaSummary;
+  source: "similar";
+  similarTo: Array<{ title: string; value: "like" | "dislike" }>;
+}
+
+export async function getRelatedCandidatePool(
+  anchors: RelatedMediaAnchor[],
+  language: UiLanguage = "de",
+): Promise<RelatedMediaCandidate[]> {
+  if (isDemoMode) return [];
+  const selected = [
+    ...anchors.filter((anchor) => anchor.value === "like").slice(0, 10),
+    ...anchors.filter((anchor) => anchor.value === "dislike").slice(0, 5),
+  ];
+  if (!selected.length) return [];
+  const genreMap = await getGenreMap(language);
+  const responses: Array<{ anchor: RelatedMediaAnchor; raw: TmdbMedia } | null> = [];
+  for (let index = 0; index < selected.length; index += 4) {
+    const batch = selected.slice(index, index + 4);
+    responses.push(
+      ...(await Promise.all(
+        batch.map(async (anchor) => {
+          try {
+            const raw = await tmdbFetch<TmdbMedia>(
+              `/${anchor.type}/${anchor.tmdbId}`,
+              { append_to_response: "recommendations,similar" },
+              false,
+              language,
+            );
+            return { anchor, raw };
+          } catch {
+            return null;
+          }
+        }),
+      )),
+    );
+  }
+
+  const candidates = new Map<string, RelatedMediaCandidate>();
+  for (const response of responses) {
+    if (!response) continue;
+    const anchorTitle = mapSummary(response.raw, response.anchor.type, genreMap, language).title;
+    const related = [...(response.raw.recommendations?.results ?? []), ...(response.raw.similar?.results ?? [])].filter(
+      (media, index, all) => all.findIndex((entry) => entry.id === media.id) === index,
+    );
+    for (const raw of related) {
+      const media = mapSummary(raw, response.anchor.type, genreMap, language);
+      const key = `${media.type}:${media.tmdbId}`;
+      const candidate =
+        candidates.get(key) ?? ({ media, source: "similar", similarTo: [] } satisfies RelatedMediaCandidate);
+      candidate.similarTo.push({
+        title: anchorTitle,
+        value: response.anchor.value === "dislike" ? "dislike" : "like",
+      });
+      candidates.set(key, candidate);
+    }
+  }
+  return [...candidates.values()];
+}
+
+export async function searchMedia(
+  query: string,
+  page = 1,
+  language: UiLanguage = "de",
+): Promise<{ results: MediaSummary[]; totalPages: number }> {
   if (isDemoMode) return { results: page === 1 ? searchDemo(query) : [], totalPages: 1 };
-  const genreMap = await getGenreMap();
+  const genreMap = await getGenreMap(language);
   const genreIds = query.trim().length >= 4 ? genreIdsMatchingQuery(query) : [];
   if (genreIds.length) {
     const tvSpecific = new Set([10759, 10762, 10763, 10764, 10765, 10766, 10767, 10768]);
@@ -137,43 +236,71 @@ export async function searchMedia(query: string, page = 1): Promise<{ results: M
     const tvGenre = genreIds.find((id) => tvSpecific.has(id)) ?? movieGenre;
     const anime = query.toLocaleLowerCase("de").includes("anime");
     const [movies, shows] = await Promise.all([
-      tmdbFetch<TmdbList<TmdbMedia>>("/discover/movie", {
-        with_genres: movieGenre,
-        with_original_language: anime ? "ja" : undefined,
-        include_adult: "false",
-        page,
-      }),
-      tmdbFetch<TmdbList<TmdbMedia>>("/discover/tv", {
-        with_genres: tvGenre,
-        with_original_language: anime ? "ja" : undefined,
-        include_adult: "false",
-        page,
-      }),
+      tmdbFetch<TmdbList<TmdbMedia>>(
+        "/discover/movie",
+        {
+          with_genres: movieGenre,
+          with_original_language: anime ? "ja" : undefined,
+          include_adult: "false",
+          page,
+        },
+        false,
+        language,
+      ),
+      tmdbFetch<TmdbList<TmdbMedia>>(
+        "/discover/tv",
+        {
+          with_genres: tvGenre,
+          with_original_language: anime ? "ja" : undefined,
+          include_adult: "false",
+          page,
+        },
+        false,
+        language,
+      ),
     ]);
     return {
       results: [
-        ...movies.results.map((result) => mapSummary(result, "movie", genreMap)),
-        ...shows.results.map((result) => mapSummary(result, "tv", genreMap)),
+        ...movies.results.map((result) => mapSummary(result, "movie", genreMap, language)),
+        ...shows.results.map((result) => mapSummary(result, "tv", genreMap, language)),
       ],
       totalPages: Math.min(Math.max(movies.total_pages ?? 1, shows.total_pages ?? 1), 50),
     };
   }
-  const data = await tmdbFetch<TmdbList<TmdbMedia>>("/search/multi", { query, include_adult: "false", page });
+  const data = await tmdbFetch<TmdbList<TmdbMedia>>(
+    "/search/multi",
+    { query, include_adult: "false", page },
+    false,
+    language,
+  );
   const results = data.results
     .filter((result) => result.media_type === "movie" || result.media_type === "tv")
-    .map((result) => mapSummary(result, result.media_type as MediaType, genreMap));
+    .map((result) => mapSummary(result, result.media_type as MediaType, genreMap, language));
   return { results, totalPages: Math.min(data.total_pages ?? 1, 50) };
 }
 
-export async function getMediaDetails(type: MediaType, id: number): Promise<MediaDetails | null> {
-  if (isDemoMode) return getDemoDetails(type, id);
+export async function getMediaDetails(
+  type: MediaType,
+  id: number,
+  language: UiLanguage = "de",
+): Promise<MediaDetails | null> {
+  if (isDemoMode) {
+    const details = getDemoDetails(type, id);
+    return details ? applyConfiguredMediaFeatures(details) : null;
+  }
   try {
-    const raw = await tmdbFetch<TmdbMedia>(`/${type}/${id}`, {
-      append_to_response: "credits,videos,similar,recommendations",
-    });
+    const requestPlan = mediaDetailRequestPlan(appConfig.features);
+    const raw = await tmdbFetch<TmdbMedia>(
+      `/${type}/${id}`,
+      { append_to_response: requestPlan.appendedResponses.join(",") },
+      false,
+      language,
+    );
     const [providerData, genreMap] = await Promise.all([
-      getWatchProviders(type, id).catch(() => ({ providers: [], link: undefined })),
-      getGenreMap(),
+      requestPlan.fetchProviders
+        ? getWatchProviders(type, id, language).catch(() => ({ providers: [], link: undefined }))
+        : Promise.resolve({ providers: [], link: undefined }),
+      getGenreMap(language),
     ]);
     const cast: Person[] = (raw.credits?.cast ?? []).slice(0, 12).map((person) => ({
       id: person.id,
@@ -197,16 +324,20 @@ export async function getMediaDetails(type: MediaType, id: number): Promise<Medi
             profilePath: person.profile_path,
           }))
         : directors;
-    const trailer =
-      raw.videos?.results?.find((video) => video.site === "YouTube" && video.type === "Trailer" && video.official) ??
-      raw.videos?.results?.find((video) => video.site === "YouTube" && video.type === "Trailer");
-    const similar = [...(raw.recommendations?.results ?? []), ...(raw.similar?.results ?? [])]
-      .filter((media, index, all) => all.findIndex((entry) => entry.id === media.id) === index)
-      .slice(0, 30)
-      .map((media) => mapSummary(media, type, genreMap));
+    const trailer = appConfig.features.trailers
+      ? (raw.videos?.results?.find((video) => video.site === "YouTube" && video.type === "Trailer" && video.official) ??
+        raw.videos?.results?.find((video) => video.site === "YouTube" && video.type === "Trailer"))
+      : undefined;
+    const similar = appConfig.features.similar_titles
+      ? [...(raw.recommendations?.results ?? []), ...(raw.similar?.results ?? [])]
+          .filter((media, index, all) => all.findIndex((entry) => entry.id === media.id) === index)
+          .slice(0, 30)
+          .map((media) => mapSummary(media, type, genreMap, language))
+      : [];
 
     return {
-      ...mapSummary(raw, type),
+      ...mapSummary(raw, type, genreMap, language),
+      featureFingerprint: mediaFeatureFingerprint,
       runtime: raw.runtime ?? raw.episode_run_time?.[0],
       seasons: raw.number_of_seasons,
       episodes: raw.number_of_episodes,
@@ -224,7 +355,11 @@ export async function getMediaDetails(type: MediaType, id: number): Promise<Medi
   }
 }
 
-async function getWatchProviders(type: MediaType, id: number): Promise<{ providers: WatchProvider[]; link?: string }> {
+async function getWatchProviders(
+  type: MediaType,
+  id: number,
+  language: UiLanguage,
+): Promise<{ providers: WatchProvider[]; link?: string }> {
   const data = await tmdbFetch<{
     results?: Record<
       string,
@@ -235,7 +370,7 @@ async function getWatchProviders(type: MediaType, id: number): Promise<{ provide
         buy?: Array<{ provider_id: number; provider_name: string; logo_path?: string }>;
       }
     >;
-  }>(`/${type}/${id}/watch/providers`);
+  }>(`/${type}/${id}/watch/providers`, {}, false, language);
   const region = data.results?.DE;
   if (!region) return { providers: [] };
   return {
@@ -253,24 +388,25 @@ async function getWatchProviders(type: MediaType, id: number): Promise<{ provide
 
 export async function getCandidatePool(
   fresh = false,
+  language: UiLanguage = "de",
 ): Promise<Array<{ media: MediaSummary; source: "popular" | "discovery" }>> {
   if (isDemoMode) return DEMO_CATALOG.map((media, index) => ({ media, source: index < 8 ? "popular" : "discovery" }));
-  const genreMap = await getGenreMap();
+  const genreMap = await getGenreMap(language);
   const pages = Array.from({ length: 5 }, (_, index) => index + 1);
   const [movies, shows, topMovies, topShows] = await Promise.all([
-    fetchCandidatePages("/trending/movie/week", pages, fresh),
-    fetchCandidatePages("/trending/tv/week", pages, fresh),
-    fetchCandidatePages("/movie/top_rated", pages, fresh, { region: "DE" }),
-    fetchCandidatePages("/tv/top_rated", pages, fresh),
+    fetchCandidatePages("/trending/movie/week", pages, fresh, language),
+    fetchCandidatePages("/trending/tv/week", pages, fresh, language),
+    fetchCandidatePages("/movie/top_rated", pages, fresh, language, { region: "DE" }),
+    fetchCandidatePages("/tv/top_rated", pages, fresh, language),
   ]);
   return [
-    ...movies.map((media) => ({ media: mapSummary(media, "movie", genreMap), source: "popular" as const })),
-    ...shows.map((media) => ({ media: mapSummary(media, "tv", genreMap), source: "popular" as const })),
+    ...movies.map((media) => ({ media: mapSummary(media, "movie", genreMap, language), source: "popular" as const })),
+    ...shows.map((media) => ({ media: mapSummary(media, "tv", genreMap, language), source: "popular" as const })),
     ...topMovies.map((media) => ({
-      media: mapSummary(media, "movie", genreMap),
+      media: mapSummary(media, "movie", genreMap, language),
       source: "discovery" as const,
     })),
-    ...topShows.map((media) => ({ media: mapSummary(media, "tv", genreMap), source: "discovery" as const })),
+    ...topShows.map((media) => ({ media: mapSummary(media, "tv", genreMap, language), source: "discovery" as const })),
   ];
 }
 
@@ -278,14 +414,11 @@ async function fetchCandidatePages(
   path: string,
   pages: number[],
   fresh: boolean,
+  language: UiLanguage,
   params: Record<string, string | number | undefined> = {},
 ): Promise<TmdbMedia[]> {
   const responses = await Promise.all(
-    pages.map((page) => tmdbFetch<TmdbList<TmdbMedia>>(path, { ...params, page }, fresh)),
+    pages.map((page) => tmdbFetch<TmdbList<TmdbMedia>>(path, { ...params, page }, fresh, language)),
   );
   return responses.flatMap((response) => response.results);
-}
-
-export function imageUrl(path: string | null | undefined, size: "w342" | "w500" | "original" = "w500"): string | null {
-  return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
 }

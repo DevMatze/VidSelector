@@ -1,6 +1,5 @@
 import type { MediaItem, Rating, WatchEntry } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { normalizeGenres, normalizeMediaGenres } from "@/lib/genres";
 import type {
   MediaDetails,
   MediaSummary,
@@ -11,15 +10,14 @@ import type {
 } from "@/lib/types";
 import { genreSchema, mediaDetailsSchema } from "@/lib/validation";
 import type { ProfileExport, ProfileImportMode } from "@/lib/profile-transfer";
+import type { UiLanguage } from "@/lib/config.mjs";
+import { invalidateLocalizedMediaCache } from "@/lib/localized-cache";
+import { DEFAULT_USER_ID, getActiveUser, getActiveUserId } from "@/lib/users";
 
-export const LOCAL_USER_ID = "local-user";
+export const LOCAL_USER_ID = DEFAULT_USER_ID;
 
 export async function ensureLocalUser() {
-  return prisma.user.upsert({
-    where: { id: LOCAL_USER_ID },
-    update: {},
-    create: { id: LOCAL_USER_ID, name: "Filmfan" },
-  });
+  return getActiveUser();
 }
 
 function parseJson<T>(value: string, fallback: T): T {
@@ -32,7 +30,7 @@ function parseJson<T>(value: string, fallback: T): T {
 
 export function mediaItemToSummary(media: MediaItem): MediaSummary {
   const parsedGenres = genreSchema.array().safeParse(parseJson<unknown>(media.genres, []));
-  return normalizeMediaGenres({
+  return {
     tmdbId: media.tmdbId,
     type: media.type as MediaSummary["type"],
     title: media.title,
@@ -46,7 +44,7 @@ export function mediaItemToSummary(media: MediaItem): MediaSummary {
     voteCount: media.voteCount,
     popularity: media.popularity,
     originalLanguage: media.originalLanguage ?? "",
-  });
+  };
 }
 
 export type StoredRating = RatingRecord & { metadata: Partial<MediaDetails> };
@@ -60,7 +58,7 @@ function summaryStorageData(media: MediaSummary, now = new Date()) {
     posterPath: media.posterPath,
     backdropPath: media.backdropPath,
     releaseDate: media.releaseDate,
-    genres: JSON.stringify(normalizeGenres(media.genres)),
+    genres: JSON.stringify(media.genres),
     voteAverage: media.voteAverage,
     voteCount: media.voteCount ?? 0,
     popularity: media.popularity,
@@ -81,15 +79,15 @@ function ratingToRecord(rating: Rating & { mediaItem: MediaItem }): StoredRating
     media: mediaItemToSummary(rating.mediaItem),
     metadata: {
       ...metadata,
-      similar: metadata.similar?.map(normalizeMediaGenres),
+      similar: metadata.similar,
     },
   };
 }
 
 export async function getRatings(): Promise<StoredRating[]> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const ratings = await prisma.rating.findMany({
-    where: { userId: LOCAL_USER_ID },
+    where: { userId },
     include: { mediaItem: true },
     orderBy: { updatedAt: "desc" },
   });
@@ -101,9 +99,9 @@ export async function getRatings(): Promise<StoredRating[]> {
 }
 
 export async function getRating(type: string, tmdbId: number): Promise<StoredRating | null> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const rating = await prisma.rating.findFirst({
-    where: { userId: LOCAL_USER_ID, mediaItem: { type, tmdbId } },
+    where: { userId, mediaItem: { type, tmdbId, scopeId: userId } },
     include: { mediaItem: true },
   });
   return rating ? ratingToRecord(rating) : null;
@@ -114,7 +112,7 @@ export async function saveRating(
   value: RatingValue,
   details?: MediaDetails | null,
 ): Promise<StoredRating> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const mediaForStorage: MediaSummary = details ?? media;
   const now = new Date();
   const summaryExpiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1_000);
@@ -126,23 +124,26 @@ export async function saveRating(
   };
   const rating = await prisma.$transaction(async (tx) => {
     const mediaItem = await tx.mediaItem.upsert({
-      where: { tmdbId_type: { tmdbId: mediaForStorage.tmdbId, type: mediaForStorage.type } },
+      where: {
+        tmdbId_type_scopeId: { tmdbId: mediaForStorage.tmdbId, type: mediaForStorage.type, scopeId: userId },
+      },
       update: mediaData,
       create: {
         tmdbId: mediaForStorage.tmdbId,
         type: mediaForStorage.type,
+        scopeId: userId,
         metadata: JSON.stringify(details ?? {}),
         ...mediaData,
       },
     });
     const saved = await tx.rating.upsert({
-      where: { userId_mediaItemId: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id } },
+      where: { userId_mediaItemId: { userId, mediaItemId: mediaItem.id } },
       update: { value },
-      create: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id, value },
+      create: { userId, mediaItemId: mediaItem.id, value },
       include: { mediaItem: true },
     });
     await tx.recommendation.updateMany({
-      where: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id },
+      where: { userId, mediaItemId: mediaItem.id },
       data: { laterRated: true },
     });
     return saved;
@@ -151,15 +152,17 @@ export async function saveRating(
 }
 
 export async function deleteRating(type: string, tmdbId: number): Promise<boolean> {
-  await ensureLocalUser();
-  const mediaItem = await prisma.mediaItem.findUnique({ where: { tmdbId_type: { tmdbId, type } } });
+  const userId = await getActiveUserId();
+  const mediaItem = await prisma.mediaItem.findUnique({
+    where: { tmdbId_type_scopeId: { tmdbId, type, scopeId: userId } },
+  });
   if (!mediaItem) return false;
-  const result = await prisma.rating.deleteMany({ where: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id } });
+  const result = await prisma.rating.deleteMany({ where: { userId, mediaItemId: mediaItem.id } });
   return result.count > 0;
 }
 
 export async function saveRecommendationHistory(recommendations: ScoredRecommendation[]): Promise<void> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const selected = recommendations.slice(0, 100);
   const cachedAt = new Date();
   const expiresAt = new Date(cachedAt.getTime() + 30 * 24 * 60 * 60 * 1_000);
@@ -168,7 +171,13 @@ export async function saveRecommendationHistory(recommendations: ScoredRecommend
     for (const recommendation of selected) {
       const media = recommendation.media;
       const item = await tx.mediaItem.upsert({
-        where: { tmdbId_type: { tmdbId: recommendation.media.tmdbId, type: recommendation.media.type } },
+        where: {
+          tmdbId_type_scopeId: {
+            tmdbId: recommendation.media.tmdbId,
+            type: recommendation.media.type,
+            scopeId: userId,
+          },
+        },
         update: {
           title: media.title,
           originalTitle: media.originalTitle,
@@ -176,7 +185,7 @@ export async function saveRecommendationHistory(recommendations: ScoredRecommend
           posterPath: media.posterPath,
           backdropPath: media.backdropPath,
           releaseDate: media.releaseDate,
-          genres: JSON.stringify(normalizeGenres(media.genres)),
+          genres: JSON.stringify(media.genres),
           voteAverage: media.voteAverage,
           voteCount: media.voteCount ?? 0,
           popularity: media.popularity,
@@ -187,13 +196,14 @@ export async function saveRecommendationHistory(recommendations: ScoredRecommend
         create: {
           tmdbId: media.tmdbId,
           type: media.type,
+          scopeId: userId,
           title: media.title,
           originalTitle: media.originalTitle,
           overview: media.overview,
           posterPath: media.posterPath,
           backdropPath: media.backdropPath,
           releaseDate: media.releaseDate,
-          genres: JSON.stringify(normalizeGenres(media.genres)),
+          genres: JSON.stringify(media.genres),
           voteAverage: media.voteAverage,
           voteCount: media.voteCount ?? 0,
           popularity: media.popularity,
@@ -204,7 +214,7 @@ export async function saveRecommendationHistory(recommendations: ScoredRecommend
       });
       currentIds.push(item.id);
       await tx.recommendation.upsert({
-        where: { userId_mediaItemId: { userId: LOCAL_USER_ID, mediaItemId: item.id } },
+        where: { userId_mediaItemId: { userId, mediaItemId: item.id } },
         update: {
           score: recommendation.score,
           reasons: JSON.stringify(recommendation.reasons),
@@ -213,7 +223,7 @@ export async function saveRecommendationHistory(recommendations: ScoredRecommend
           active: true,
         },
         create: {
-          userId: LOCAL_USER_ID,
+          userId,
           mediaItemId: item.id,
           score: recommendation.score,
           reasons: JSON.stringify(recommendation.reasons),
@@ -223,7 +233,7 @@ export async function saveRecommendationHistory(recommendations: ScoredRecommend
     }
     await tx.recommendation.updateMany({
       where: {
-        userId: LOCAL_USER_ID,
+        userId,
         active: true,
         ...(currentIds.length ? { mediaItemId: { notIn: currentIds } } : {}),
       },
@@ -242,8 +252,9 @@ export interface RecommendationSignal {
 export async function getRecommendationSignals(mediaItems: MediaSummary[]): Promise<Map<string, RecommendationSignal>> {
   const clauses = mediaItems.map((media) => ({ tmdbId: media.tmdbId, type: media.type }));
   if (!clauses.length) return new Map();
+  const userId = await getActiveUserId();
   const stored = await prisma.recommendation.findMany({
-    where: { userId: LOCAL_USER_ID, mediaItem: { OR: clauses } },
+    where: { userId, mediaItem: { scopeId: userId, OR: clauses } },
     include: { mediaItem: { select: { tmdbId: true, type: true } } },
   });
   return new Map(
@@ -260,12 +271,13 @@ export async function getRecommendationSignals(mediaItems: MediaSummary[]): Prom
 }
 
 export async function getRecommendationSourceAdjustments(): Promise<Record<string, number>> {
+  const userId = await getActiveUserId();
   const outcomes = await prisma.recommendation.findMany({
-    where: { userId: LOCAL_USER_ID, laterRated: true },
+    where: { userId, laterRated: true },
     select: {
       source: true,
       mediaItem: {
-        select: { ratings: { where: { userId: LOCAL_USER_ID }, select: { value: true }, take: 1 } },
+        select: { ratings: { where: { userId }, select: { value: true }, take: 1 } },
       },
     },
   });
@@ -289,8 +301,9 @@ export async function getRecommendationSourceAdjustments(): Promise<Record<strin
 export async function getCachedCandidatePeople(mediaItems: MediaSummary[]): Promise<Map<string, string[]>> {
   const clauses = mediaItems.map((media) => ({ tmdbId: media.tmdbId, type: media.type }));
   if (!clauses.length) return new Map();
+  const userId = await getActiveUserId();
   const stored = await prisma.mediaItem.findMany({
-    where: { OR: clauses },
+    where: { scopeId: userId, OR: clauses },
     select: { tmdbId: true, type: true, metadata: true },
   });
   return new Map(
@@ -307,9 +320,9 @@ export async function markRecommendationEvents(
   items: Array<{ type: string; tmdbId: number }>,
   event: "displayed" | "clicked" | "skipped",
 ): Promise<void> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const mediaItems = await prisma.mediaItem.findMany({
-    where: { OR: items.map((item) => ({ type: item.type, tmdbId: item.tmdbId })) },
+    where: { scopeId: userId, OR: items.map((item) => ({ type: item.type, tmdbId: item.tmdbId })) },
     select: { id: true },
   });
   if (!mediaItems.length) return;
@@ -317,7 +330,7 @@ export async function markRecommendationEvents(
   await prisma.$transaction(
     mediaItems.map((item) =>
       prisma.recommendation.upsert({
-        where: { userId_mediaItemId: { userId: LOCAL_USER_ID, mediaItemId: item.id } },
+        where: { userId_mediaItemId: { userId, mediaItemId: item.id } },
         update:
           event === "clicked"
             ? { clicked: true, clickCount: { increment: 1 } }
@@ -325,7 +338,7 @@ export async function markRecommendationEvents(
               ? { skipCount: { increment: 1 }, lastShownAt: now }
               : { displayed: true, lastShownAt: now, displayCount: { increment: 1 } },
         create: {
-          userId: LOCAL_USER_ID,
+          userId,
           mediaItemId: item.id,
           score: 0,
           reasons: "[]",
@@ -351,9 +364,9 @@ function watchEntryToRecord(entry: WatchEntry & { mediaItem: MediaItem; user?: u
 }
 
 export async function getWatchEntries(): Promise<StoredWatchEntry[]> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const entries = await prisma.watchEntry.findMany({
-    where: { userId: LOCAL_USER_ID },
+    where: { userId },
     include: { mediaItem: true },
     orderBy: { updatedAt: "desc" },
   });
@@ -366,9 +379,9 @@ export async function getWatchEntries(): Promise<StoredWatchEntry[]> {
 }
 
 export async function isBookmarked(type: string, tmdbId: number): Promise<boolean> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const entry = await prisma.watchEntry.findFirst({
-    where: { userId: LOCAL_USER_ID, mediaItem: { type, tmdbId } },
+    where: { userId, mediaItem: { type, tmdbId, scopeId: userId } },
     select: { id: true },
   });
   return Boolean(entry);
@@ -377,26 +390,26 @@ export async function isBookmarked(type: string, tmdbId: number): Promise<boolea
 export async function getBookmarkMap(mediaItems: MediaSummary[]): Promise<Map<string, true>> {
   const clauses = mediaItems.map((media) => ({ tmdbId: media.tmdbId, type: media.type }));
   if (!clauses.length) return new Map();
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const entries = await prisma.watchEntry.findMany({
-    where: { userId: LOCAL_USER_ID, mediaItem: { OR: clauses } },
+    where: { userId, mediaItem: { scopeId: userId, OR: clauses } },
     include: { mediaItem: { select: { tmdbId: true, type: true } } },
   });
   return new Map(entries.map((entry) => [`${entry.mediaItem.type}:${entry.mediaItem.tmdbId}`, true]));
 }
 
 export async function saveWatchEntry(media: MediaSummary): Promise<StoredWatchEntry> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   const entry = await prisma.$transaction(async (tx) => {
     const mediaItem = await tx.mediaItem.upsert({
-      where: { tmdbId_type: { tmdbId: media.tmdbId, type: media.type } },
+      where: { tmdbId_type_scopeId: { tmdbId: media.tmdbId, type: media.type, scopeId: userId } },
       update: summaryStorageData(media),
-      create: { tmdbId: media.tmdbId, type: media.type, ...summaryStorageData(media) },
+      create: { tmdbId: media.tmdbId, type: media.type, scopeId: userId, ...summaryStorageData(media) },
     });
     return tx.watchEntry.upsert({
-      where: { userId_mediaItemId: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id } },
+      where: { userId_mediaItemId: { userId, mediaItemId: mediaItem.id } },
       update: { updatedAt: new Date() },
-      create: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id },
+      create: { userId, mediaItemId: mediaItem.id },
       include: { mediaItem: true },
     });
   });
@@ -404,24 +417,27 @@ export async function saveWatchEntry(media: MediaSummary): Promise<StoredWatchEn
 }
 
 export async function deleteWatchEntry(type: string, tmdbId: number): Promise<boolean> {
-  await ensureLocalUser();
-  const mediaItem = await prisma.mediaItem.findUnique({ where: { tmdbId_type: { tmdbId, type } } });
+  const userId = await getActiveUserId();
+  const mediaItem = await prisma.mediaItem.findUnique({
+    where: { tmdbId_type_scopeId: { tmdbId, type, scopeId: userId } },
+  });
   if (!mediaItem) return false;
-  const result = await prisma.watchEntry.deleteMany({ where: { userId: LOCAL_USER_ID, mediaItemId: mediaItem.id } });
+  const result = await prisma.watchEntry.deleteMany({ where: { userId, mediaItemId: mediaItem.id } });
   return result.count > 0;
 }
 
 export async function exportProfileData(): Promise<ProfileExport> {
   const user = await ensureLocalUser();
+  const userId = user.id;
   const [ratings, watchEntries] = await Promise.all([
-    prisma.rating.findMany({ where: { userId: LOCAL_USER_ID }, include: { mediaItem: true } }),
-    prisma.watchEntry.findMany({ where: { userId: LOCAL_USER_ID }, include: { mediaItem: true } }),
+    prisma.rating.findMany({ where: { userId }, include: { mediaItem: true } }),
+    prisma.watchEntry.findMany({ where: { userId }, include: { mediaItem: true } }),
   ]);
   return {
     format: "vidselector-profile",
     version: 2,
     exportedAt: new Date().toISOString(),
-    profile: { name: user.name },
+    profile: { name: user.name, language: user.language as UiLanguage },
     ratings: ratings.map((rating) => ({
       type: rating.mediaItem.type as MediaSummary["type"],
       tmdbId: rating.mediaItem.tmdbId,
@@ -441,22 +457,27 @@ export async function exportProfileData(): Promise<ProfileExport> {
 }
 
 export async function importProfileData(data: ProfileExport, mode: ProfileImportMode) {
-  await ensureLocalUser();
+  const previousUser = await ensureLocalUser();
+  const userId = previousUser.id;
   await prisma.$transaction(async (tx) => {
     if (mode === "replace") {
-      await tx.recommendation.deleteMany({ where: { userId: LOCAL_USER_ID } });
-      await tx.rating.deleteMany({ where: { userId: LOCAL_USER_ID } });
-      await tx.watchEntry.deleteMany({ where: { userId: LOCAL_USER_ID } });
+      await tx.recommendation.deleteMany({ where: { userId } });
+      await tx.rating.deleteMany({ where: { userId } });
+      await tx.watchEntry.deleteMany({ where: { userId } });
     }
-    await tx.user.update({ where: { id: LOCAL_USER_ID }, data: { name: data.profile.name } });
+    await tx.user.update({
+      where: { id: userId },
+      data: { name: data.profile.name, ...(data.profile.language ? { language: data.profile.language } : {}) },
+    });
     const now = new Date();
     for (const rating of data.ratings) {
       const item = await tx.mediaItem.upsert({
-        where: { tmdbId_type: { tmdbId: rating.tmdbId, type: rating.type } },
+        where: { tmdbId_type_scopeId: { tmdbId: rating.tmdbId, type: rating.type, scopeId: userId } },
         update: {},
         create: {
           tmdbId: rating.tmdbId,
           type: rating.type,
+          scopeId: userId,
           title: rating.title ?? "Metadaten werden aktualisiert",
           genres: "[]",
           cachedAt: now,
@@ -464,10 +485,10 @@ export async function importProfileData(data: ProfileExport, mode: ProfileImport
         },
       });
       await tx.rating.upsert({
-        where: { userId_mediaItemId: { userId: LOCAL_USER_ID, mediaItemId: item.id } },
+        where: { userId_mediaItemId: { userId, mediaItemId: item.id } },
         update: { value: rating.value, updatedAt: rating.updatedAt ? new Date(rating.updatedAt) : now },
         create: {
-          userId: LOCAL_USER_ID,
+          userId,
           mediaItemId: item.id,
           value: rating.value,
           createdAt: rating.createdAt ? new Date(rating.createdAt) : now,
@@ -477,11 +498,12 @@ export async function importProfileData(data: ProfileExport, mode: ProfileImport
     }
     for (const watchEntry of data.watchEntries) {
       const item = await tx.mediaItem.upsert({
-        where: { tmdbId_type: { tmdbId: watchEntry.tmdbId, type: watchEntry.type } },
+        where: { tmdbId_type_scopeId: { tmdbId: watchEntry.tmdbId, type: watchEntry.type, scopeId: userId } },
         update: {},
         create: {
           tmdbId: watchEntry.tmdbId,
           type: watchEntry.type,
+          scopeId: userId,
           title: watchEntry.title ?? "Metadaten werden aktualisiert",
           genres: "[]",
           cachedAt: now,
@@ -489,10 +511,10 @@ export async function importProfileData(data: ProfileExport, mode: ProfileImport
         },
       });
       await tx.watchEntry.upsert({
-        where: { userId_mediaItemId: { userId: LOCAL_USER_ID, mediaItemId: item.id } },
+        where: { userId_mediaItemId: { userId, mediaItemId: item.id } },
         update: { updatedAt: watchEntry.updatedAt ? new Date(watchEntry.updatedAt) : now },
         create: {
-          userId: LOCAL_USER_ID,
+          userId,
           mediaItemId: item.id,
           createdAt: watchEntry.createdAt ? new Date(watchEntry.createdAt) : now,
           updatedAt: watchEntry.updatedAt ? new Date(watchEntry.updatedAt) : now,
@@ -500,25 +522,42 @@ export async function importProfileData(data: ProfileExport, mode: ProfileImport
       });
     }
   });
+  if (data.profile.language && data.profile.language !== previousUser.language) {
+    await invalidateLocalizedMediaCache(userId);
+  }
   return { ratings: data.ratings.length, watchEntries: data.watchEntries.length, mode };
 }
 
 export async function updateProfileName(name: string) {
-  await ensureLocalUser();
-  return prisma.user.update({ where: { id: LOCAL_USER_ID }, data: { name } });
+  const userId = await getActiveUserId();
+  return prisma.user.update({ where: { id: userId }, data: { name } });
+}
+
+export async function updateProfile(name: string, language: UiLanguage) {
+  const previousUser = await ensureLocalUser();
+  const user = await prisma.user.update({ where: { id: previousUser.id }, data: { name, language } });
+  if (previousUser.language !== language) await invalidateLocalizedMediaCache(previousUser.id);
+  return user;
+}
+
+export async function getProfileLanguage(): Promise<UiLanguage> {
+  const user = await ensureLocalUser();
+  return user.language as UiLanguage;
 }
 
 export async function getProfile() {
   const user = await ensureLocalUser();
+  const userId = user.id;
   const [ratings, recommendations, watchEntries, ratedRecommendations] = await Promise.all([
-    prisma.rating.count({ where: { userId: LOCAL_USER_ID } }),
-    prisma.recommendation.count({ where: { userId: LOCAL_USER_ID, active: true } }),
-    prisma.watchEntry.count({ where: { userId: LOCAL_USER_ID } }),
-    prisma.recommendation.count({ where: { userId: LOCAL_USER_ID, laterRated: true } }),
+    prisma.rating.count({ where: { userId } }),
+    prisma.recommendation.count({ where: { userId, active: true } }),
+    prisma.watchEntry.count({ where: { userId } }),
+    prisma.recommendation.count({ where: { userId, laterRated: true } }),
   ]);
   return {
     id: user.id,
     name: user.name,
+    language: user.language as UiLanguage,
     createdAt: user.createdAt.toISOString(),
     ratings,
     recommendations,
@@ -528,10 +567,10 @@ export async function getProfile() {
 }
 
 export async function resetProfile(): Promise<void> {
-  await ensureLocalUser();
+  const userId = await getActiveUserId();
   await prisma.$transaction([
-    prisma.recommendation.deleteMany({ where: { userId: LOCAL_USER_ID } }),
-    prisma.rating.deleteMany({ where: { userId: LOCAL_USER_ID } }),
-    prisma.watchEntry.deleteMany({ where: { userId: LOCAL_USER_ID } }),
+    prisma.recommendation.deleteMany({ where: { userId } }),
+    prisma.rating.deleteMany({ where: { userId } }),
+    prisma.watchEntry.deleteMany({ where: { userId } }),
   ]);
 }

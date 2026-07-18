@@ -9,8 +9,12 @@ const mocks = vi.hoisted(() => ({
   purgeExpiredMediaCache: vi.fn(),
   searchMedia: vi.fn(),
   getBookmarkMap: vi.fn(),
+  getProfileLanguage: vi.fn(),
 }));
-vi.mock("@/lib/data", () => ({ getBookmarkMap: mocks.getBookmarkMap }));
+vi.mock("@/lib/data", () => ({
+  getBookmarkMap: mocks.getBookmarkMap,
+  getProfileLanguage: mocks.getProfileLanguage,
+}));
 
 vi.mock("@/lib/media-cache", () => ({
   findCachedMedia: mocks.findCachedMedia,
@@ -51,6 +55,7 @@ describe("GET /api/search cache", () => {
     mocks.getCachedSearch.mockResolvedValue(null);
     mocks.purgeExpiredMediaCache.mockResolvedValue(undefined);
     mocks.getBookmarkMap.mockResolvedValue(new Map());
+    mocks.getProfileLanguage.mockResolvedValue("de");
   });
 
   it("liefert lokale Treffer ohne TMDB-Anfrage", async () => {
@@ -75,7 +80,7 @@ describe("GET /api/search cache", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ results: [result], cacheHit: false });
     expect(mocks.findCachedMedia).toHaveBeenCalledWith("Dark");
-    expect(mocks.searchMedia).toHaveBeenCalledWith("Dark", 1);
+    expect(mocks.searchMedia).toHaveBeenCalledWith("Dark", 1, "de");
     expect(mocks.cacheSearch).toHaveBeenCalledWith("Dark", 1, [result], 3);
   });
 

@@ -1,6 +1,6 @@
 {
   "name": "vidselector",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Lokale Film- und Serienbewertung mit persönlichen, regelbasierten Empfehlungen.",
   "private": true,
   "license": "UNLICENSED",
@@ -16,10 +16,10 @@
     "postcss": "^8.5.10"
   },
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0",
-    "dev:local": "next dev --hostname 127.0.0.1",
+    "dev": "node scripts/run-server.mjs dev",
+    "dev:local": "node scripts/run-server.mjs dev --hostname 127.0.0.1",
     "build": "next build --webpack",
-    "start": "next start --hostname 0.0.0.0",
+    "start": "node scripts/run-server.mjs start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -30,7 +30,7 @@
     "test:e2e": "playwright test",
     "db:backup": "tsx --env-file=.env scripts/backup-database.ts",
     "db:migrate": "prisma migrate deploy",
-    "db:push": "npm run db:backup && npm run db:migrate",
+    "db:push": "npm run db:backup -- --migration && npm run db:migrate",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "setup": "npm run db:push && npm run db:seed"
   },
@@ -40,6 +40,7 @@
     "next": "^16.2.10",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "yaml": "^2.9.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

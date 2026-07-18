@@ -1,6 +1,8 @@
 import { access, mkdir, readdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
+import { appConfig } from "@/lib/config.mjs";
+import { databaseBackupsToDelete, shouldCreateDatabaseBackup } from "@/lib/backup-policy";
 
 function databasePath() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -10,6 +12,11 @@ function databasePath() {
 }
 
 async function main() {
+  const migrationBackup = process.argv.includes("--migration");
+  if (!shouldCreateDatabaseBackup(appConfig.backups, migrationBackup)) {
+    console.log("Datenbanksicherung laut config.yml übersprungen.");
+    return;
+  }
   const source = databasePath();
   try {
     await access(source);
@@ -17,17 +24,18 @@ async function main() {
     console.log("Noch keine SQLite-Datenbank vorhanden – Backup übersprungen.");
     return;
   }
-  const directory = path.join(process.cwd(), "backups", "database");
+  const directory = path.resolve(process.cwd(), appConfig.backups.directory, "database");
   await mkdir(directory, { recursive: true });
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const target = path.join(directory, `vidselector-${timestamp}.db`);
   const escapedTarget = target.replaceAll("'", "''");
   await prisma.$executeRawUnsafe(`VACUUM INTO '${escapedTarget}'`);
-  const files = (await readdir(directory))
-    .filter((file) => file.endsWith(".db"))
-    .sort()
-    .reverse();
-  await Promise.all(files.slice(10).map((file) => unlink(path.join(directory, file))));
+  const files = await readdir(directory);
+  await Promise.all(
+    databaseBackupsToDelete(files, appConfig.backups.database_backups).map((file) =>
+      unlink(path.join(directory, file)),
+    ),
+  );
   console.log(`Datenbanksicherung erstellt: ${target}`);
 }
 

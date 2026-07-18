@@ -65,6 +65,13 @@ describe("recommendationsForCategory", () => {
     expect(keys(top)).not.toContain("movie:2");
   });
 
+  it("verwendet ein konfiguriertes Startseitenlimit, ohne die erweiterten Kategorien zu kürzen", () => {
+    const top = recommendationsForCategory("more", recommendations, new Set(), 3);
+    expect(top.filter((item) => item.media.type === "movie")).toHaveLength(3);
+    expect(top.filter((item) => item.media.type === "tv")).toHaveLength(3);
+    expect(expandedRecommendationsForCategory("more", recommendations)).toHaveLength(341);
+  });
+
   it("erstellt eigene Film- und Serientitel pro Kategorie", () => {
     expect(categoryTitleForMediaType("more", "movie")).toBe("Top-Auswahl für dich – Filme");
     expect(categoryTitleForMediaType("more", "tv")).toBe("Top-Auswahl für dich – Serien");

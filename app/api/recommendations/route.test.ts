@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
   getRatings: vi.fn(),
   getCandidatePool: vi.fn(),
+  getRelatedCandidatePool: vi.fn(),
   cacheMediaSummaries: vi.fn(),
   cacheSearch: vi.fn(),
   getCachedSearch: vi.fn(),
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   getRecommendationSignals: vi.fn(),
   getRecommendationSourceAdjustments: vi.fn(),
   getBookmarkMap: vi.fn(),
+  getProfileLanguage: vi.fn(),
 }));
 vi.mock("@/lib/data", () => ({
   getRatings: mocks.getRatings,
@@ -24,6 +26,7 @@ vi.mock("@/lib/data", () => ({
   getRecommendationSignals: mocks.getRecommendationSignals,
   getRecommendationSourceAdjustments: mocks.getRecommendationSourceAdjustments,
   getBookmarkMap: mocks.getBookmarkMap,
+  getProfileLanguage: mocks.getProfileLanguage,
 }));
 vi.mock("@/lib/media-cache", () => ({
   cacheMediaSummaries: mocks.cacheMediaSummaries,
@@ -36,7 +39,8 @@ vi.mock("@/lib/recommendations/engine", () => ({
 }));
 vi.mock("@/lib/tmdb", () => ({
   getCandidatePool: mocks.getCandidatePool,
-  isDemoMode: true,
+  getRelatedCandidatePool: mocks.getRelatedCandidatePool,
+  isDemoMode: false,
   TmdbError: class TmdbError extends Error {},
 }));
 
@@ -47,11 +51,13 @@ describe("GET /api/recommendations", () => {
     vi.clearAllMocks();
     mocks.getRatings.mockResolvedValue([]);
     mocks.getCandidatePool.mockResolvedValue([]);
+    mocks.getRelatedCandidatePool.mockResolvedValue([]);
     mocks.candidatesFromRatings.mockReturnValue([]);
     mocks.getCachedCandidatePeople.mockResolvedValue(new Map());
     mocks.getRecommendationSignals.mockResolvedValue(new Map());
     mocks.getRecommendationSourceAdjustments.mockResolvedValue({});
     mocks.getBookmarkMap.mockResolvedValue(new Map());
+    mocks.getProfileLanguage.mockResolvedValue("de");
     mocks.cacheSearch.mockResolvedValue(undefined);
     mocks.scoreRecommendations.mockReturnValue({ profile: { ratingCount: 0 }, recommendations: [] });
   });
@@ -59,7 +65,8 @@ describe("GET /api/recommendations", () => {
   it("erzwingt bei manueller Aktualisierung einen frischen Kandidatenpool", async () => {
     const response = await GET(new NextRequest("http://localhost/api/recommendations?refresh=1"));
     expect(response.status).toBe(200);
-    expect(mocks.getCandidatePool).toHaveBeenCalledWith(true);
+    expect(mocks.getCandidatePool).toHaveBeenCalledWith(true, "de");
+    expect(mocks.getRelatedCandidatePool).toHaveBeenCalledWith([], "de");
     expect(mocks.saveRecommendationHistory).toHaveBeenCalledWith([]);
   });
 
@@ -88,6 +95,7 @@ describe("GET /api/recommendations", () => {
     expect(mocks.scoreRecommendations).toHaveBeenCalledWith(
       [],
       [expect.objectContaining({ media, source: "popular" })],
+      "de",
     );
   });
 });

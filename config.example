@@ -1,0 +1,84 @@
+# Beispielkonfiguration für VidSelector.
+# Kopiere diese Datei als config.yml, damit VidSelector die Einstellungen beim nächsten Start verwendet.
+
+# Einstellungen für Sprache und regionale Darstellung.
+localization:
+  # Legt die Standardsprache für neu angelegte Profile fest: de, en, es oder fr.
+  default_language: "de"
+
+# Einstellungen für lokale Benutzerprofile ohne Anmeldung.
+users:
+  # Legt den Profilmodus fest: simple verwendet genau einen Benutzer, multiple aktiviert die Benutzerverwaltung.
+  mode: "simple"
+
+# Einstellungen für den Webserver.
+server:
+  # Legt fest, auf welcher Netzwerkadresse der Server lauscht.
+  host: "0.0.0.0"
+
+  # Legt den Port fest, über den VidSelector erreichbar ist.
+  port: 3000
+
+# Einstellungen für die verwendete Medienquelle.
+catalog:
+  # Erzwingt den Demo-Katalog auch bei vorhandenen TMDB-Zugangsdaten.
+  force_demo: false
+
+# Einstellungen für die Darstellung der Empfehlungen.
+recommendations:
+  # Zeigt bei Empfehlungen eine kurze Erklärung für die Auswahl an.
+  show_reasons: true
+
+  # Begrenzt die Anzahl der Titel pro Medientyp und Kategorie auf der Startseite.
+  homepage_limit: 50
+
+  # Legt fest, wie viele weitere Titel bei „Weitere laden“ ergänzt werden.
+  load_batch_size: 20
+
+# Einstellungen für automatische und manuelle Sicherungen.
+backups:
+  # Aktiviert die Erstellung lokaler Sicherungen.
+  enabled: true
+
+  # Legt das Verzeichnis für Sicherungsdateien fest.
+  directory: "./backups"
+
+  # Erstellt vor jeder Datenbankmigration automatisch eine Sicherung.
+  before_migration: true
+
+  # Erstellt vor jedem Profilimport automatisch eine Sicherung.
+  before_import: true
+
+  # Legt fest, wie viele Datenbanksicherungen aufbewahrt werden.
+  database_backups: 10
+
+  # Legt fest, wie viele tägliche Profilsicherungen aufbewahrt werden.
+  daily_profile_backups: 7
+
+  # Legt fest, wie viele wöchentliche Profilsicherungen aufbewahrt werden.
+  weekly_profile_backups: 4
+
+# Einstellungen für Protokollausgaben der Anwendung.
+logging:
+  # Legt die Ausführlichkeit der Protokolle fest: error, warn, info oder debug.
+  level: "info"
+
+  # Protokolliert eingehende HTTP-Anfragen ohne persönliche Inhalte.
+  log_requests: false
+
+  # Schreibt Protokolle in diese Datei; ein leerer Wert verwendet nur die Konsole.
+  file: ""
+
+# Schalter für optionale Funktionen von VidSelector.
+features:
+  # Aktiviert den Import und Export des persönlichen Profils.
+  profile_import_export: true
+
+  # Zeigt verfügbare Streaming-, Miet- und Kaufanbieter an.
+  streaming_providers: true
+
+  # Zeigt verfügbare Trailer in den Mediendetails an.
+  trailers: true
+
+  # Zeigt ähnliche Filme und Serien in den Mediendetails an.
+  similar_titles: true

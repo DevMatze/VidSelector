@@ -4,9 +4,11 @@ import { importProfileData } from "@/lib/data";
 import { createProfileBackup } from "@/lib/profile-backups";
 import { profileImportRequestSchema } from "@/lib/profile-transfer";
 import { assertSameOrigin, enforceRateLimit } from "@/lib/request-security";
+import { assertFeatureEnabled } from "@/lib/features";
 
 export async function POST(request: Request) {
   try {
+    assertFeatureEnabled("profile_import_export");
     assertSameOrigin(request);
     enforceRateLimit(request, "profile-import", 5, 60_000);
     const body = profileImportRequestSchema.parse(await request.json());

@@ -1,13 +1,16 @@
+"use client";
+
 import Link from "next/link";
 import { Info } from "lucide-react";
+import { useI18n } from "@/components/app-provider";
 
 export function DemoBanner() {
+  const { t } = useI18n();
   return (
     <div className="demo-banner">
       <Info size={17} />
       <span>
-        Demo-Modus: Du nutzt den integrierten Beispielkatalog. Hinterlege deinen TMDB-Schlüssel in <code>.env</code>, um
-        den vollständigen Katalog zu aktivieren. <Link href="/settings">Mehr erfahren</Link>
+        {t("demo.message")} <Link href="/settings">{t("demo.more")}</Link>
       </span>
     </div>
   );

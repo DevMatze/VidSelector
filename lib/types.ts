@@ -38,6 +38,7 @@ export interface MediaSummary {
 }
 
 export interface MediaDetails extends MediaSummary {
+  featureFingerprint?: string;
   runtime?: number;
   seasons?: number;
   episodes?: number;

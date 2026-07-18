@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError } from "@/lib/api-response";
-import { deleteRating, getRatings, saveRating } from "@/lib/data";
+import { deleteRating, getProfileLanguage, getRatings, saveRating } from "@/lib/data";
 import { genreFacets, matchesGenreFilter } from "@/lib/genres";
 import { getCachedMediaDetails } from "@/lib/media-cache";
 import { getMediaDetails } from "@/lib/tmdb";
@@ -55,11 +55,12 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     enforceRateLimit(request, "ratings", 90, 60_000);
     const body = saveRatingSchema.parse(await request.json());
+    const language = await getProfileLanguage();
     let details = null;
     try {
       details =
         (await getCachedMediaDetails(body.media.type, body.media.tmdbId)) ??
-        (await getMediaDetails(body.media.type, body.media.tmdbId));
+        (await getMediaDetails(body.media.type, body.media.tmdbId, language));
     } catch {
       /* The rating remains usable with submitted metadata. */
     }

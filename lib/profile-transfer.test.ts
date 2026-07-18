@@ -15,6 +15,28 @@ describe("VidSelector-Profiltransfer", () => {
     expect(profileImportRequestSchema.parse({ mode: "merge", data }).data).toMatchObject(data);
   });
 
+  it("überträgt eine unterstützte Profilsprache und bleibt mit älteren Exporten kompatibel", () => {
+    expect(
+      profileImportRequestSchema.parse({
+        mode: "merge",
+        data: {
+          ...data,
+          profile: { ...data.profile, language: "es" },
+        },
+      }).data.profile.language,
+    ).toBe("es");
+    expect(profileImportRequestSchema.parse({ mode: "merge", data }).data.profile.language).toBeUndefined();
+    expect(
+      profileImportRequestSchema.safeParse({
+        mode: "merge",
+        data: {
+          ...data,
+          profile: { ...data.profile, language: "it" },
+        },
+      }).success,
+    ).toBe(false);
+  });
+
   it("weist unbekannte Versionen ab", () => {
     expect(profileImportRequestSchema.safeParse({ mode: "merge", data: { ...data, version: 3 } }).success).toBe(false);
   });

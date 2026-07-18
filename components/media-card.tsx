@@ -8,6 +8,7 @@ import { MediaPoster } from "@/components/media-poster";
 import { RatingControls } from "@/components/rating-controls";
 import { trackRecommendations } from "@/lib/recommendation-tracking";
 import { BookmarkControl } from "@/components/bookmark-control";
+import { useI18n } from "@/components/app-provider";
 
 interface Props {
   media: MediaSummary;
@@ -30,6 +31,7 @@ export function MediaCard({
   bookmarked = media.bookmarked ?? false,
   onBookmarkChange,
 }: Props) {
+  const { t } = useI18n();
   const year = media.releaseDate?.slice(0, 4) || "—";
   const cardRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -52,11 +54,11 @@ export function MediaCard({
       <Link
         className="poster"
         href={`/media/${media.type}/${media.tmdbId}`}
-        aria-label={`${media.title} – Details`}
+        aria-label={t("common.detailsLabel", { title: media.title })}
         onClick={() => trackRecommendation && trackRecommendations([media], "clicked")}
       >
         <MediaPoster path={media.posterPath} title={media.title} priority={priority} />
-        <span className="type-badge">{media.type === "movie" ? "Film" : "Serie"}</span>
+        <span className="type-badge">{t(media.type === "movie" ? "common.movie" : "common.series")}</span>
         {media.voteAverage > 0 && (
           <span className="score-badge">
             <Star size={13} fill="currentColor" />
@@ -78,7 +80,7 @@ export function MediaCard({
           {media.genres
             .slice(0, 3)
             .map((genre) => genre.name)
-            .join(" · ") || "Genre unbekannt"}
+            .join(" · ") || t("common.genreUnknown")}
         </p>
         {reason && (
           <p className="reason">

@@ -44,20 +44,20 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
-    "@vitest/coverage-v8": "^4.1.10",
-    "axe-core": "^4.12.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "axe-core": "^4.13.0",
     "eslint": "^9.39.5",
-    "eslint-config-next": "^16.2.10",
+    "eslint-config-next": "^16.3.3",
     "jsdom": "^29.1.1",
-    "prettier": "^3.9.5",
+    "prettier": "^3.9.6",
     "prisma": "^6.19.2",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.12",
     "typescript": "^5.7.2",
     "vitest": "^4.1.10"
   }
